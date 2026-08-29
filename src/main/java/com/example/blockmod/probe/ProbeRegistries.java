@@ -5,11 +5,11 @@ import com.mojang.serialization.Codec;
 import com.example.blockmod.BlockMod;
 
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
-import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.core.component.DataComponentType;
 
 import net.neoforged.bus.api.IEventBus;
@@ -30,11 +30,15 @@ public final class ProbeRegistries {
             DeferredRegister.create(BuiltInRegistries.DATA_COMPONENT_TYPE, BlockMod.MODID);
 
     public static final DeferredHolder<MobEffect, MobEffect> PROBE_EFFECT =
-            EFFECTS.register("probe_effect", () -> new MobEffect(MobEffectCategory.NEUTRAL, 0x8844FF));
+            EFFECTS.register("probe_effect", () -> new MobEffect(MobEffectCategory.NEUTRAL, 0x8844FF) { });
     public static final DeferredHolder<SoundEvent, SoundEvent> PROBE_SOUND =
             SOUNDS.register("probe_sound", () -> SoundEvent.createVariableRangeEvent(rl("probe_sound")));
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> PROBE_COMPONENT =
-            COMPONENTS.register("probe_component", () -> DataComponentType.<Integer>builder().codec(Codec.INT).build());
+            COMPONENTS.register("probe_component",
+                    () -> DataComponentType.<Integer>builder()
+                            .persistent(Codec.INT)
+                            .networkSynchronized(ByteBufCodecs.VAR_INT)
+                            .build());
 
     public static void registerAll(IEventBus modEventBus) {
         EFFECTS.register(modEventBus);

@@ -8,7 +8,6 @@ import com.mojang.authlib.GameProfile;
 import com.example.blockmod.BlockMod;
 import com.example.blockmod.BlockModLogger;
 
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -27,6 +26,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.ICancellableEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.util.FakePlayer;
@@ -41,19 +41,22 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 /**
  * TEMPORARY M0 probe (T-03) — remove at M1.
  *
- * Runs on a dedicated server with no players. Arms itself on {@link ServerStartedEvent}
- * and walks through 13 scheduled phases on the server thread, using a {@link FakePlayer}
- * and an off-world {@link Zombie} to trigger the damage/use-item paths.
+ * Runs on a dedicated server with no real players. Arms itself on {@link ServerStartedEvent}
+ * and walks through 12 scheduled phases on the server thread.
  *
- * Covers: API-01/02 (damage/shield event order + cancel + setBlocked),
- * API-03 (priority ordering), API-05 (attachment get/set), API-10 (transient modifiers),
- * API-11/12 (damage source tags + source position), API-13 (use item events / food timing),
- * API-14 (hurtAndBreak), API-16 (LivingJumpEvent cancelability).
+ * Subject under test is a NoAI zombie added to the world (it can be hurt, raise a shield
+ * and tick naturally). NeoForge's {@link FakePlayer} is used only as the attacker and for
+ * attachment/attribute tests — it is deliberately invulnerable and does not tick.
+ *
+ * Covers: API-01/02 (damage/shield event order + cancel + setBlocked), API-03 (priority
+ * ordering), API-05 (attachment get/set), API-10 (transient modifiers), API-11/12 (damage
+ * source tags + source position), API-13 (use item events / food timing), API-14
+ * (hurtAndBreak), API-16 (LivingJumpEvent cancelability).
  */
 @EventBusSubscriber(modid = BlockMod.MODID)
 public final class ServerApiProbe {
     private static final int PHASE_FIRST = 1;
-    private static final int PHASE_LAST = 13;
+    private static final int PHASE_LAST = 12;
     private static final int PHASE_SPACING_TICKS = 25;
 
     private static int phase = 0; // 0 = disarmed, -1 = done
@@ -61,8 +64,8 @@ public final class ServerApiProbe {
     private static int serverTick = 0;
 
     private static ServerLevel level;
-    private static ServerPlayer dummy;
-    private static Zombie zombie;
+    private static ServerPlayer attacker; // FakePlayer: never hurt, never ticks, used as damage source
+    private static Zombie subject;        // NoAI zombie: hurt-able, ticks, can raise a shield
 
     // per-phase behaviour flags read by the event handlers
     private static boolean modifyInHigh;
@@ -71,7 +74,6 @@ public final class ServerApiProbe {
     private static boolean disableVanillaBlock;
 
     private static int playerTicksLogged;
-    private static int foodAtStart = -1;
 
     // ------------------------------------------------------------------
     // arming / scheduling
@@ -79,14 +81,18 @@ public final class ServerApiProbe {
     @SubscribeEvent
     static void onServerStarted(ServerStartedEvent event) {
         level = event.getServer().overworld();
-        dummy = new FakePlayer(level, new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b1"), "BlockProbe"));
-        zombie = EntityType.ZOMBIE.create(level);
-        if (zombie == null) {
+        attacker = new FakePlayer(level, new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b1"), "BlockProbe"));
+        subject = EntityType.ZOMBIE.create(level);
+        if (subject == null) {
             BlockModLogger.error("PROBE", "ev", "ARM", "error", "zombie create failed");
             phase = -1;
             return;
         }
+        subject.setNoAi(true); // probe only: keep it stationary so phases stay deterministic
+        subject.setPersistenceRequired(); // probe only: rule out any despawn path mid-run
         placeActors();
+        level.addFreshEntity(subject);
+        level.setDayTime(18000); // night: stop sunlight burning from polluting the phases
         BlockModLogger.info("PROBE", "ev", "ARM", "note", "probe armed, phases " + PHASE_FIRST + ".." + PHASE_LAST);
         phase = PHASE_FIRST;
         countdown = 60; // let the world settle
@@ -125,10 +131,9 @@ public final class ServerApiProbe {
             case 7 -> phaseDisableVanillaBlock();
             case 8 -> phaseProjectile();
             case 9 -> phaseExplosion();
-            case 10 -> phaseFall();
-            case 11 -> phaseEat();
-            case 12 -> phaseJumpEvent();
-            case 13 -> phaseHurtAndBreak();
+            case 10 -> phaseFallAndEat();
+            case 11 -> phaseJumpEvent();
+            case 12 -> phaseHurtAndBreak();
             default -> { }
         }
     }
@@ -137,14 +142,14 @@ public final class ServerApiProbe {
     // phases
 
     private static void phaseAttachment() {
-        dummy.setData(ProbeAttachments.PROBE_VALUE.get(), 42);
-        int read = dummy.getData(ProbeAttachments.PROBE_VALUE.get());
+        attacker.setData(ProbeAttachments.PROBE_VALUE.get(), 42);
+        int read = attacker.getData(ProbeAttachments.PROBE_VALUE.get());
         BlockModLogger.info("PROBE", "ev", "AttachmentGetSet", "written", 42, "read", read,
                 "match", read == 42);
     }
 
     private static void phaseAttributes() {
-        AttributeInstance speed = dummy.getAttribute(Attributes.MOVEMENT_SPEED);
+        AttributeInstance speed = attacker.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speed == null) {
             BlockModLogger.error("PROBE", "ev", "AttributeModifier", "error", "no MOVEMENT_SPEED attribute");
             return;
@@ -159,46 +164,57 @@ public final class ServerApiProbe {
     }
 
     private static void phasePriority() {
-        dummy.getFoodData().setFoodLevel(6); // below regen threshold so health deltas stay clean
         modifyInHigh = true;
         modifyInLowest = true;
-        hurtAndReport("priorityTest", level.damageSources().mobAttack(zombie), 6.0f);
+        float before = subject.getHealth();
+        subject.hurt(level.damageSources().playerAttack(attacker), 6.0f);
         modifyInHigh = false;
         modifyInLowest = false;
+        BlockModLogger.info("PROBE", "ev", "HurtResult", "label", "priorityTest",
+                "before", before, "after", subject.getHealth(), "delta", before - subject.getHealth());
     }
 
     private static void phaseRaiseShield() {
-        dummy.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.SHIELD));
-        dummy.startUsingItem(InteractionHand.MAIN_HAND);
-        BlockModLogger.info("PROBE", "ev", "RaiseShield", "using", dummy.isUsingItem(),
-                "blocking", dummy.isBlocking(), "note", "blocking turns true after 5 use ticks");
+        subject.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.SHIELD));
+        subject.startUsingItem(InteractionHand.OFF_HAND);
+        BlockModLogger.info("PROBE", "ev", "RaiseShield", "using", subject.isUsingItem(),
+                "blocking", subject.isBlocking(), "note", "blocking turns true after 5 use ticks");
     }
 
     private static void phaseVanillaBlock() {
-        int shieldDmgBefore = dummy.getMainHandItem().getDamageValue();
-        BlockModLogger.info("PROBE", "ev", "VanillaBlock", "shieldDmgBefore", shieldDmgBefore);
-        hurtAndReport("vanillaBlock", level.damageSources().mobAttack(zombie), 6.0f);
-        BlockModLogger.info("PROBE", "ev", "VanillaBlock", "shieldDmgAfter", dummy.getMainHandItem().getDamageValue());
+        subject.setHealth(20.0f);
+        int shieldDmgBefore = subject.getOffhandItem().getDamageValue();
+        float before = subject.getHealth();
+        subject.hurt(level.damageSources().playerAttack(attacker), 6.0f);
+        BlockModLogger.info("PROBE", "ev", "HurtResult", "label", "vanillaBlock",
+                "before", before, "after", subject.getHealth(), "delta", before - subject.getHealth(),
+                "shieldDmgBefore", shieldDmgBefore, "shieldDmgAfter", subject.getOffhandItem().getDamageValue());
     }
 
     private static void phaseCancelIncoming() {
+        subject.setHealth(20.0f);
         cancelIncoming = true;
-        int shieldDmgBefore = dummy.getMainHandItem().getDamageValue();
-        hurtAndReport("cancelIncoming", level.damageSources().mobAttack(zombie), 6.0f);
+        float before = subject.getHealth();
+        int shieldDmgBefore = subject.getOffhandItem().getDamageValue();
+        subject.hurt(level.damageSources().playerAttack(attacker), 6.0f);
         cancelIncoming = false;
-        BlockModLogger.info("PROBE", "ev", "CancelIncoming", "shieldDmgAfter", dummy.getMainHandItem().getDamageValue(),
-                "shieldDmgBefore", shieldDmgBefore);
+        BlockModLogger.info("PROBE", "ev", "HurtResult", "label", "cancelIncoming",
+                "before", before, "after", subject.getHealth(), "delta", before - subject.getHealth(),
+                "shieldDmgBefore", shieldDmgBefore, "shieldDmgAfter", subject.getOffhandItem().getDamageValue());
     }
 
     private static void phaseDisableVanillaBlock() {
+        subject.setHealth(20.0f);
         disableVanillaBlock = true;
-        int shieldDmgBefore = dummy.getMainHandItem().getDamageValue();
-        hurtAndReport("disableVanillaBlock", level.damageSources().mobAttack(zombie), 6.0f);
+        float before = subject.getHealth();
+        int shieldDmgBefore = subject.getOffhandItem().getDamageValue();
+        subject.hurt(level.damageSources().playerAttack(attacker), 6.0f);
         disableVanillaBlock = false;
-        BlockModLogger.info("PROBE", "ev", "DisableVanillaBlock", "shieldDmgBefore", shieldDmgBefore,
-                "shieldDmgAfter", dummy.getMainHandItem().getDamageValue());
-        dummy.stopUsingItem();
-        dummy.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        BlockModLogger.info("PROBE", "ev", "HurtResult", "label", "disableVanillaBlock",
+                "before", before, "after", subject.getHealth(), "delta", before - subject.getHealth(),
+                "shieldDmgBefore", shieldDmgBefore, "shieldDmgAfter", subject.getOffhandItem().getDamageValue());
+        subject.stopUsingItem();
+        subject.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
     }
 
     private static void phaseProjectile() {
@@ -207,54 +223,67 @@ public final class ServerApiProbe {
             BlockModLogger.error("PROBE", "ev", "Projectile", "error", "arrow create failed");
             return;
         }
-        arrow.setPos(dummy.getX() + 2.0, dummy.getY() + 1.0, dummy.getZ());
-        arrow.setOwner(zombie);
-        DamageSource source = level.damageSources().arrow(arrow, zombie);
+        arrow.setPos(subject.getX() + 2.0, subject.getY() + 1.0, subject.getZ());
+        arrow.setOwner(attacker);
+        DamageSource source = level.damageSources().arrow(arrow, attacker);
         logDamageSource("arrow", source);
-        hurtAndReport("arrow", source, 4.0f);
+        subject.setHealth(20.0f);
+        float before = subject.getHealth();
+        subject.hurt(source, 4.0f);
+        BlockModLogger.info("PROBE", "ev", "HurtResult", "label", "arrow",
+                "before", before, "after", subject.getHealth(), "delta", before - subject.getHealth());
     }
 
     private static void phaseExplosion() {
-        DamageSource source = level.damageSources().explosion(zombie, zombie);
+        DamageSource source = level.damageSources().explosion(attacker, attacker);
         logDamageSource("explosion", source);
-        hurtAndReport("explosion", source, 3.0f);
+        subject.setHealth(20.0f);
+        float before = subject.getHealth();
+        subject.hurt(source, 3.0f);
+        BlockModLogger.info("PROBE", "ev", "HurtResult", "label", "explosion",
+                "before", before, "after", subject.getHealth(), "delta", before - subject.getHealth());
     }
 
-    private static void phaseFall() {
-        DamageSource source = level.damageSources().fall();
-        logDamageSource("fall", source);
-        hurtAndReport("fall", source, 2.0f);
-    }
+    private static void phaseFallAndEat() {
+        DamageSource fallSource = level.damageSources().fall();
+        logDamageSource("fall", fallSource);
+        subject.setHealth(20.0f);
+        float before = subject.getHealth();
+        subject.hurt(fallSource, 2.0f);
+        BlockModLogger.info("PROBE", "ev", "HurtResult", "label", "fall",
+                "before", before, "after", subject.getHealth(), "delta", before - subject.getHealth());
 
-    private static void phaseEat() {
-        // Start/Stop fire synchronously without ticking
-        dummy.getFoodData().setFoodLevel(17);
+        // Start fires synchronously on the fake player; FoodData is player-only, so the
+        // pre/post nutrition comparison rides on the player's food level.
+        attacker.getFoodData().setFoodLevel(17);
         ItemStack apple = new ItemStack(Items.APPLE);
-        dummy.setItemInHand(InteractionHand.MAIN_HAND, apple);
-        dummy.startUsingItem(InteractionHand.MAIN_HAND);
-        dummy.stopUsingItem();
+        attacker.setItemInHand(InteractionHand.MAIN_HAND, apple);
+        attacker.startUsingItem(InteractionHand.MAIN_HAND);
+        attacker.stopUsingItem();
 
-        // full eat attempt: countdown happens inside LivingEntity#tick
-        dummy.getFoodData().setFoodLevel(17);
-        dummy.startUsingItem(InteractionHand.MAIN_HAND);
-        boolean tickOk = true;
-        for (int i = 0; i < 40 && dummy.isUsingItem(); i++) {
+        // full eat on the subject: drive its tick manually so the countdown is
+        // deterministic (natural server ticking continues in the background).
+        subject.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.APPLE));
+        subject.startUsingItem(InteractionHand.MAIN_HAND);
+        BlockModLogger.info("PROBE", "ev", "EatAttempt", "usingAfterStart", subject.isUsingItem(),
+                "duration", subject.getUseItem().getUseDuration(subject));
+        for (int i = 0; i < 40 && subject.isUsingItem(); i++) {
             try {
-                dummy.tick();
+                subject.tick();
             } catch (Throwable t) {
-                BlockModLogger.error("PROBE", "ev", "FakePlayerTick", "threw", t.toString());
-                tickOk = false;
+                BlockModLogger.error("PROBE", "ev", "FakePlayerTick", "subject", "tick", "threw", t.toString());
                 break;
             }
         }
-        BlockModLogger.info("PROBE", "ev", "EatAttempt", "tickOk", tickOk,
-                "stillUsing", dummy.isUsingItem(), "foodAfter", dummy.getFoodData().getFoodLevel());
-        dummy.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        BlockModLogger.info("PROBE", "ev", "EatAttempt", "stillUsing", subject.isUsingItem(),
+                "ticksUsing", subject.getTicksUsingItem(),
+                "resultItem", subject.getUseItem().getItem().toString());
+        subject.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
     }
 
     private static void phaseJumpEvent() {
-        LivingEvent.LivingJumpEvent jumpEvent = new LivingEvent.LivingJumpEvent(dummy);
-        BlockModLogger.info("PROBE", "ev", "LivingJumpEvent", "cancelable", jumpEvent.isCancelable(),
+        LivingEvent.LivingJumpEvent jumpEvent = new LivingEvent.LivingJumpEvent(subject);
+        BlockModLogger.info("PROBE", "ev", "LivingJumpEvent", "cancelable", jumpEvent instanceof ICancellableEvent,
                 "class", jumpEvent.getClass().getName());
     }
 
@@ -263,11 +292,8 @@ public final class ServerApiProbe {
         Consumer<net.minecraft.world.item.Item> onBreak =
                 item -> BlockModLogger.info("PROBE", "ev", "HurtAndBreak", "breakCallback", "fired");
         BlockModLogger.info("PROBE", "ev", "HurtAndBreak", "before", shieldCopy.getDamageValue());
-        shieldCopy.hurtAndBreak(5, level, dummy, onBreak);
+        shieldCopy.hurtAndBreak(5, level, attacker, onBreak);
         BlockModLogger.info("PROBE", "ev", "HurtAndBreak", "after", shieldCopy.getDamageValue());
-
-        zombie.hurt(level.damageSources().playerAttack(dummy), 5.0f);
-        BlockModLogger.info("PROBE", "ev", "MobHurt", "note", "hurt a zombie with playerAttack to show incoming fires for mobs too");
     }
 
     // ------------------------------------------------------------------
@@ -314,20 +340,18 @@ public final class ServerApiProbe {
     @SubscribeEvent
     static void onUseItemStart(LivingEntityUseItemEvent.Start event) {
         boolean isApple = event.getItem().is(Items.APPLE);
-        if (isApple && event.getEntity() == dummy) {
-            foodAtStart = dummy.getFoodData().getFoodLevel();
-        }
         BlockModLogger.info("PROBE", "ev", "UseItem.Start", "entity", nameOf(event.getEntity()),
                 "item", event.getItem().getItem().toString(), "hand", event.getHand(),
-                "duration", event.getDuration(), "foodLevel", isApple ? foodAtStart : "-");
+                "duration", event.getDuration(), "count", event.getItem().getCount(),
+                "foodLevel", isApple && event.getEntity() == attacker ? attacker.getFoodData().getFoodLevel() : "-");
     }
 
     @SubscribeEvent
     static void onUseItemFinish(LivingEntityUseItemEvent.Finish event) {
-        boolean isApple = event.getItem().is(Items.APPLE);
+        boolean isApple = event.getItem().is(Items.APPLE) || event.getItem().isEmpty();
         BlockModLogger.info("PROBE", "ev", "UseItem.Finish", "entity", nameOf(event.getEntity()),
-                "item", event.getItem().getItem().toString(), "duration", event.getDuration(),
-                "foodLevelAtFinish", isApple ? dummy.getFoodData().getFoodLevel() : "-");
+                "resultCount", event.getItem().getCount(), "isEmpty", event.getItem().isEmpty(),
+                "note", isApple ? "if count=0/empty, finishUsingItem ran BEFORE this event" : "");
     }
 
     @SubscribeEvent
@@ -349,26 +373,17 @@ public final class ServerApiProbe {
 
     private static void placeActors() {
         Vec3 spawn = Vec3.atCenterOf(level.getSharedSpawnPos());
-        dummy.setPos(spawn.x, spawn.y, spawn.z);
-        zombie.setPos(spawn.x + 2.0, spawn.y, spawn.z);
-        face(dummy, spawn.x + 2.0, spawn.z);
+        attacker.setPos(spawn.x, spawn.y, spawn.z);
+        subject.setPos(spawn.x + 2.0, spawn.y, spawn.z);
+        face(subject, spawn.x, spawn.z); // subject faces the attacker so frontal blocking can pass
     }
 
-    private static void face(ServerPlayer player, double x, double z) {
-        double dx = x - player.getX();
-        double dz = z - player.getZ();
+    private static void face(LivingEntity entity, double x, double z) {
+        double dx = x - entity.getX();
+        double dz = z - entity.getZ();
         float yaw = (float) Math.toDegrees(Math.atan2(-dx, -dz));
-        player.setYRot(yaw);
-        player.setYHeadRot(yaw);
-        player.setXRot(0.0f);
-    }
-
-    private static void hurtAndReport(String label, DamageSource source, float amount) {
-        float before = dummy.getHealth();
-        dummy.hurt(source, amount);
-        float after = dummy.getHealth();
-        BlockModLogger.info("PROBE", "ev", "HurtResult", "label", label,
-                "before", before, "after", after, "delta", before - after);
+        entity.setYRot(yaw);
+        entity.setYHeadRot(yaw);
     }
 
     private static void logDamageSource(String label, DamageSource source) {
