@@ -6,7 +6,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
+import net.minecraft.Util;
 import net.minecraft.world.entity.player.Player;
 
 import net.neoforged.api.distmarker.Dist;
@@ -61,14 +61,15 @@ public final class StaminaHudLayer {
         int y = graphics.guiHeight() - FOOD_ROW_OFFSET - BAR_GAP - BAR_HEIGHT;
         int left = right - BAR_WIDTH;
 
-        float display = Mth.clamp(ClientGuardState.displayStamina(), Float.NEGATIVE_INFINITY, ClientGuardState.maxStamina());
+        // Display stamina may legitimately be negative while depleted; only clamp the top.
+        float display = Math.min(ClientGuardState.displayStamina(), ClientGuardState.maxStamina());
         boolean depleted = ClientGuardState.isDepleted();
         boolean parryWindow = ClientGuardState.parryRemainTicks() > 0;
 
         graphics.fill(left - 1, y - 1, right + 1, y + BAR_HEIGHT + 1, COLOR_BORDER);
         graphics.fill(left, y, right, y + BAR_HEIGHT, COLOR_BACK);
 
-        float fillRatio = Mth.clamp(display / Math.max(ClientGuardState.maxStamina(), 0.001f), 0.0f, 1.0f);
+        float fillRatio = Math.max(0.0f, Math.min(display / Math.max(ClientGuardState.maxStamina(), 0.001f), 1.0f));
         int fillWidth = Math.round(BAR_WIDTH * fillRatio);
         if (fillWidth > 0) {
             int color = depleted ? COLOR_DEPLETED : COLOR_NORMAL;
