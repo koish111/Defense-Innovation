@@ -1,5 +1,7 @@
 package com.example.blockmod.mixin;
 
+import com.example.blockmod.logic.MixinHooks;
+
 import net.minecraft.world.entity.player.Player;
 
 import org.spongepowered.asm.mixin.Mixin;

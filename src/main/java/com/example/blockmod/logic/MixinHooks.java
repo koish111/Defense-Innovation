@@ -1,4 +1,7 @@
-package com.example.blockmod.mixin;
+package com.example.blockmod.logic;
+
+// NOTE: lives outside the mixin package — the Mixin subsystem forbids loading regular
+// classes from a defined mixin package (IllegalClassLoadError), only @Mixin types may live there.
 
 import com.example.blockmod.config.Config;
 
