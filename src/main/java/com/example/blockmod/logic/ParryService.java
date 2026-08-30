@@ -29,6 +29,12 @@ import org.jetbrains.annotations.Nullable;
  * window, release + 10 ticks → window).
  */
 public final class ParryService {
+    private static void spawnCrit(net.minecraft.world.level.Level level, double x, double y, double z) {
+        if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+            serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.CRIT, x, y, z, 12, 0.3, 0.3, 0.3, 0.15);
+        }
+    }
+
     private ParryService() {}
 
     // ------------------------------------------------------------------
@@ -88,6 +94,11 @@ public final class ParryService {
             // non-arrow projectiles are parried without a special handler (FR-13)
         }
         com.example.blockmod.network.SyncThrottler.forceSync(player);
+        // FR-22 MVP feedback: vanilla CRIT burst at the parry point (custom FX is post-MVP)
+        spawnCrit(player.level(), player.getX(), player.getY() + 1.0, player.getZ());
+        if (attacker != null) {
+            spawnCrit(player.level(), attacker.getX(), attacker.getY() + 1.0, attacker.getZ());
+        }
         BlockModLogger.info("PARRY", "player", player.getGameProfile().getName(),
                 "class", damageClass, "attacker", attacker == null ? "none" : attacker.getType().toString());
     }
@@ -105,9 +116,10 @@ public final class ParryService {
             }
             BossTracker.reset(attacker.getUUID(), player.getUUID());
         }
-        // E-20: addEffect refreshes the duration instead of stacking
+        // E-20: addEffect refreshes the duration instead of stacking; visible=true so the
+        // vanilla swirl reads as the stun (custom stun_star is post-MVP, FR-22)
         attacker.addEffect(new MobEffectInstance(ModEffects.STUN,
-                Config.stunDuration(), 0, false, false, true));
+                Config.stunDuration(), 0, false, true, true));
         BlockModLogger.info("PARRY", "action", "stun", "target", attacker.getType().toString(),
                 "duration", Config.stunDuration());
     }

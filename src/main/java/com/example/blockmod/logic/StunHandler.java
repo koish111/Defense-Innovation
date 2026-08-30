@@ -29,12 +29,27 @@ public final class StunHandler {
     }
 
     /**
-     * Lockdown rows 1, 2 and 5: zero horizontal speed, clamp upward Y, interrupt item use.
-     * Runs on {@link EntityTickEvent.Pre} (1.21.1 has no separate LivingTickEvent) so the
-     * zeroed delta movement governs this tick's movement resolution.
+     * Lockdown rows 1, 2 and 5. Two very different mechanisms are required:
+     *
+     * <ul>
+     *   <li><b>Mobs</b>: their AI re-computes movement AFTER the Pre hook every tick
+     *       (zeroing the velocity only produces a slow drift — verified in-game), so a
+     *       stunned mob's tick is simply CANCELLED: no movement, no jump, no AI, no
+     *       attacks for the whole stun. Event-only, and {@code setNoAi} stays untouched
+     *       (Spec §5.8).</li>
+     *   <li><b>Players</b>: movement is input-driven on the client
+     *       ({@code ClientStunInputHandler}); the server side zeroes residual velocity,
+     *       clamps jumps and interrupts item use.</li>
+     * </ul>
      */
     @SubscribeEvent
     static void onLivingTick(EntityTickEvent.Pre event) {
+        if (event.getEntity() instanceof net.minecraft.world.entity.monster.Monster monster) {
+            if (isStunned(monster)) {
+                event.setCanceled(true); // full freeze — the stun IS the skipped tick
+            }
+            return;
+        }
         if (!(event.getEntity() instanceof LivingEntity entity) || !isStunned(entity)) {
             return;
         }

@@ -192,7 +192,12 @@ public final class GuardResolver {
             StaminaService.refreshDepletedState(ctx.player(), guardState, guardState.wasDepleted());
         }
 
-        // 9. immediate sync (sound/particles land here with M6 T-40)
+        // 9. immediate sync (guard_hit sound lands here with M6 T-40); CRIT burst is the
+        // FR-22 MVP feedback and lands now
+        if (ctx.player().level() instanceof net.minecraft.server.level.ServerLevel level) {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.CRIT,
+                    ctx.player().getX(), ctx.player().getY() + 1.0, ctx.player().getZ(), 8, 0.3, 0.3, 0.3, 0.1);
+        }
         SyncThrottler.forceSync(ctx.player());
         BlockModLogger.info("GUARD", "result", "GUARDED", "player", ctx.player().getGameProfile().getName(),
                 "damage", ctx.damage(), "cost", cost, "gb", effectiveGb, "pfix", pfix,
