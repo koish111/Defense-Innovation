@@ -69,13 +69,11 @@ public final class GuardResolver {
                         "class", com.example.blockmod.logic.DamageClassifier.classify(event.getSource()));
             }
             if (result == GuardRules.RESULT_PARRIED) {
-                // Full parry semantics (deflect/stun/boss counter) land in M4 (T-31..T-34);
-                // the M3 slice already guarantees the cost-free full cancel.
                 REENTRANCY.add(player.getUUID());
                 try {
-                    event.setCanceled(true);
-                    BlockModLogger.info("GUARD", "result", "PARRIED", "player", player.getGameProfile().getName());
-                    SyncThrottler.forceSync(player);
+                    event.setCanceled(true); // full immunity, zero stamina, zero durability (FR-13)
+                    com.example.blockmod.logic.ParryService.onParried(player, event.getSource(),
+                            ctx.damageClass(), ctx.equipment().profile(), player.level().getGameTime());
                 } finally {
                     REENTRANCY.remove(player.getUUID());
                 }

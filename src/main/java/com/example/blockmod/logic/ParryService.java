@@ -1,7 +1,5 @@
 package com.example.blockmod.logic;
 
-import java.util.UUID;
-
 import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.config.Config;
 import com.example.blockmod.data.DamageClass;
@@ -89,7 +87,7 @@ public final class ParryService {
             }
             // non-arrow projectiles are parried without a special handler (FR-13)
         }
-        SyncParryProbe.sync(player);
+        com.example.blockmod.network.SyncThrottler.forceSync(player);
         BlockModLogger.info("PARRY", "player", player.getGameProfile().getName(),
                 "class", damageClass, "attacker", attacker == null ? "none" : attacker.getType().toString());
     }
@@ -108,7 +106,7 @@ public final class ParryService {
             BossTracker.reset(attacker.getUUID(), player.getUUID());
         }
         // E-20: addEffect refreshes the duration instead of stacking
-        attacker.addEffect(new MobEffectInstance(ModEffects.STUN.get(),
+        attacker.addEffect(new MobEffectInstance(ModEffects.STUN,
                 Config.stunDuration(), 0, false, false, true));
         BlockModLogger.info("PARRY", "action", "stun", "target", attacker.getType().toString(),
                 "duration", Config.stunDuration());
@@ -139,19 +137,4 @@ public final class ParryService {
         arrow.hasImpulse = true;
     }
 
-    /** Empty marker type so callers do not import ShieldType for nothing. */
-    private static final ShieldType UNUSED = ShieldType.SWORD;
-
-    /** Lazy-sync indirection kept package-local. */
-    private static final class SyncParryProbe {
-        static void sync(ServerPlayer player) {
-            com.example.blockmod.network.SyncThrottler.forceSync(player);
-        }
-    }
-
-    /** Referenced so the compiler keeps the constant; otherwise unused. */
-    @SuppressWarnings("unused")
-    private static UUID unusedRef() {
-        return UUID.nameUUIDFromBytes(UNUSED.name().getBytes());
-    }
 }
