@@ -175,7 +175,7 @@ public final class Config {
         PVP_MODE = defineWhitelist("PvP/PvE selection.", "pvp_mode", "auto", List.of("auto", "always_pvp", "always_pve"));
         AFFECT_CREATIVE = BUILDER.comment("ADR-13: apply stamina costs to creative players. Default off (creative exempt).").define("affect_creative", false);
         FRONT_HALF_ANGLE_DEG = defineInt("Half angle of the frontal guard arc in degrees. 90 = frontal 180 degrees.", "front_half_angle_deg", 90, 10, 180);
-        EXPLOSION_KNOCKBACK_REDUCTION = defineDouble("ADR-12: knockback taken off an explosion while blocking (1.0 = fully negated).", "explosion_knockback_reduction", 0.5, 0.0, 1.0);
+        EXPLOSION_KNOCKBACK_REDUCTION = defineDouble("Knockback taken off a blocked explosion. Designer ruling 2026-08-30 supersedes ADR-12: 1.0 = blocked explosions ignore knockback entirely.", "explosion_knockback_reduction", 1.0, 0.0, 1.0);
         SWORD_GUARD_REQUIRES_NO_BLOCK_TARGET = BUILDER.comment("R-04: sword guarding requires not looking at a usable block (vanilla right-click wins otherwise).").define("sword_guard_requires_no_block_target", true);
         MIN_GB = defineDouble("ADR-09: lower clamp for guard strength.", "min_gb", 0.01, 0.0, 0.5);
         MAX_GB = defineDouble("ADR-09: upper clamp for guard strength. Must stay below 1.0.", "max_gb", 0.95, 0.5, 0.99);

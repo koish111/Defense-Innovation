@@ -109,7 +109,7 @@ public final class GuardResolver {
         }
     }
 
-    /** T-28: halve the knockback vector of an explosion the player just blocked. */
+    /** T-28: blocked explosions remove the knockback vector per {@code explosion_knockback_reduction}. */
     @SubscribeEvent
     static void onExplosionKnockback(ExplosionKnockbackEvent event) {
         if (!(event.getAffectedEntity() instanceof ServerPlayer player)) {
@@ -212,17 +212,18 @@ public final class GuardResolver {
         };
     }
 
-    /** §5.4.4: melee/projectile knockback dies with the cancelled event; explosions push at a reduced strength. */
+    /**
+     * §5.4.4 (as amended by the 2026-08-30 designer ruling): melee/projectile
+     * knockback dies with the cancelled event; blocked explosions ignore the
+     * knockback entirely — the vanilla push is zeroed in {@link #onExplosionKnockback}
+     * (ExplosionKnockbackEvent fires right after the hurt call in the same
+     * explosion loop iteration, so the marker set here is guaranteed to be seen).
+     */
     private static void applyKnockbackReduction(GuardContext ctx) {
         if (ctx.damageClass() != DamageClass.EXPLOSION) {
             return; // full reduction: the cancelled event removes vanilla knockback entirely
         }
-        Vec3 srcPos = ctx.source().getSourcePosition();
-        if (srcPos == null) {
-            return;
-        }
-        ctx.player().knockback(0.4f * Config.explosionKnockbackReduction(), srcPos.x, srcPos.z);
-        EXPLOSION_BLOCKED.add(ctx.player().getUUID()); // T-28: halve the explosion's own push in this tick
+        EXPLOSION_BLOCKED.add(ctx.player().getUUID()); // zero the explosion's own push this tick
     }
 
     // ------------------------------------------------------------------
