@@ -58,6 +58,15 @@ public final class PlayerTickHandler {
             guardState.setParryWindowEndTick(-1L);
         }
 
+        // 2.5 E-07: opening a container exits the guard immediately (malus removed).
+        if (guardState.isGuarding() && player.containerMenu != player.inventoryMenu) {
+            guardState.setGuarding(false);
+            com.example.blockmod.logic.MovementService.remove(player, guardState);
+            SyncThrottler.forceSync(player);
+            com.example.blockmod.BlockModLogger.info("GUARD_INPUT", "action", "container_exit",
+                    "player", player.getGameProfile().getName());
+        }
+
         // 3. shield bash windup/cooldown — ShieldBashService.tick lands here in M5.
 
         // 4. regeneration (FR-02 three-branch selection)

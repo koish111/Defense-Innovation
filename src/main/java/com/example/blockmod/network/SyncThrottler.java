@@ -48,16 +48,31 @@ public final class SyncThrottler {
         send(player, player.level().getGameTime());
     }
 
+    private static float lastMaxStamina; // E-14: config-change scaling reference
+
     /** Pushes the active config subset to every online player (FR-20, config hot reload). */
     public static void sendConfigToAll(Iterable<ServerPlayer> players) {
         ConfigSyncPayload payload = new ConfigSyncPayload(
                 Config.maxStamina(), Config.regenRate(), Config.depletedRegenRate(), Config.regenDelaySeconds());
         int count = 0;
         for (ServerPlayer player : players) {
+            applyStaminaRescale(player); // E-14: keep stamina proportional when max_stamina changes
             PacketDistributor.sendToPlayer(player, payload);
             count++;
         }
-        BlockModLogger.info("CONFIG_SYNC", "players", count);
+        BlockModLogger.info("CONFIG_SYNC", "players", count, "maxStamina", Config.maxStamina());
+    }
+
+    /** E-14: scale the current stamina proportionally when max_stamina changed on reload. */
+    private static void applyStaminaRescale(ServerPlayer player) {
+        float newMax = Config.maxStamina();
+        if (lastMaxStamina <= 0f || lastMaxStamina == newMax) {
+            lastMaxStamina = newMax;
+            return;
+        }
+        StaminaData stamina = player.getData(com.example.blockmod.registry.ModAttachments.STAMINA.get());
+        stamina.setStamina(stamina.stamina() * newMax / lastMaxStamina);
+        lastMaxStamina = newMax;
     }
 
     /** FR-20: on config load/reload, push the new values if a server is running. */
