@@ -36,8 +36,10 @@ public final class ModCommands {
                                         .executes(ctx -> get(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
                         .then(Commands.literal("set")
                                 .requires(src -> src.hasPermission(2))
-                                .then(Commands.argument("player", EntityArgument.player())
-                                        .then(Commands.argument("value", FloatArgumentType.floatArg())
+                                .then(Commands.argument("value", FloatArgumentType.floatArg())
+                                        .executes(ctx -> set(ctx.getSource(), ctx.getSource().getPlayerOrException(),
+                                                FloatArgumentType.getFloat(ctx, "value")))
+                                        .then(Commands.argument("player", EntityArgument.player())
                                                 .executes(ctx -> set(ctx.getSource(),
                                                         EntityArgument.getPlayer(ctx, "player"),
                                                         FloatArgumentType.getFloat(ctx, "value"))))))
@@ -47,6 +49,7 @@ public final class ModCommands {
                                         .executes(ctx -> fill(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))))
                 .then(Commands.literal("deplete")
                         .requires(src -> src.hasPermission(2))
+                        .executes(ctx -> deplete(ctx.getSource(), ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(ctx -> deplete(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))));
     }
