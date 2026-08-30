@@ -1,6 +1,7 @@
 package com.example.blockmod.handler;
 
 import com.example.blockmod.config.Config;
+import com.example.blockmod.logic.GuardFormulas;
 import com.example.blockmod.logic.StaminaService;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
@@ -46,7 +47,10 @@ public final class PlayerTickHandler {
 
         // 1. power guard continuous drain (deduct first: this tick may already enter depletion)
         if (guardState.isPowerGuarding() && guardState.isGuarding()) {
-            float drain = Config.maxStamina() * Config.pgStaminaDrainPercent() / 100.0f / 20.0f;
+            // FR-16 (2026-08-30 ruling): drain = max x percent + flat, per second; the max is
+            // read per tick so a future dynamic maximum is honoured automatically
+            float drain = GuardFormulas.powerGuardDrainPerSecond(Config.maxStamina(),
+                    Config.pgStaminaDrainPercent(), Config.pgStaminaDrainFlat()) / 20.0f;
             stamina.setStamina(stamina.stamina() - drain);
             if (stamina.stamina() <= 0f) {
                 guardState.setPowerGuarding(false); // FR-16: PG closes itself on depletion

@@ -112,6 +112,7 @@ public final class Config {
     // [power_guard]
     // ==================================================================
     private static final ModConfigSpec.ConfigValue<Double> PG_STAMINA_DRAIN_PERCENT;
+    private static final ModConfigSpec.ConfigValue<Double> PG_STAMINA_DRAIN_FLAT;
     private static final ModConfigSpec.BooleanValue PG_DISABLE_JUMP;
     private static final ModConfigSpec.BooleanValue PG_SUSPEND_REGEN;
     private static final ModConfigSpec.ConfigValue<String> PG_KEY;
@@ -205,7 +206,8 @@ public final class Config {
         BUILDER.pop();
 
         BUILDER.push("power_guard");
-        PG_STAMINA_DRAIN_PERCENT = defineDouble("FR-16: power guard drain per second as a percentage of max_stamina.", "stamina_drain_percent", 5.0, 0.0, 100.0);
+        PG_STAMINA_DRAIN_PERCENT = defineDouble("FR-16: power guard drain per second, percentage of max_stamina (follows a dynamic max automatically).", "stamina_drain_percent", 1.0, 0.0, 100.0);
+        PG_STAMINA_DRAIN_FLAT = defineDouble("FR-16: power guard drain per second, flat points on top of the percentage. Total = max_stamina x percent + flat (designer ruling 2026-08-30).", "stamina_drain_flat", 1.0, 0.0, 100.0);
         PG_DISABLE_JUMP = BUILDER.comment("FR-16: jumping is disabled during power guard.").define("disable_jump", true);
         PG_SUSPEND_REGEN = BUILDER.comment("ADR-08: stamina regen is suspended during power guard.").define("suspend_regen", true);
         PG_KEY = BUILDER.comment("FR-16: key binding name for power guard (client display only).").define("key", "key.keyboard.left.alt", o -> o instanceof String s && !s.isBlank());
@@ -301,6 +303,7 @@ public final class Config {
 
     // [power_guard]
     public static float pgStaminaDrainPercent() { return PG_STAMINA_DRAIN_PERCENT.get().floatValue(); }
+    public static float pgStaminaDrainFlat() { return PG_STAMINA_DRAIN_FLAT.get().floatValue(); }
     public static boolean pgDisableJump() { return PG_DISABLE_JUMP.get(); }
     public static boolean pgSuspendRegen() { return PG_SUSPEND_REGEN.get(); }
     public static String pgKey() { return PG_KEY.get(); }

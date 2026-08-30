@@ -27,6 +27,15 @@ public final class GuardFormulas {
         return Math.clamp(v, minCost, maxCost);
     }
 
+    /**
+     * Power guard drain per second (designer ruling 2026-08-30):
+     * {@code maxStamina x percent + flat} points. Reads the max at call time so a
+     * future per-player dynamic maximum is honoured automatically.
+     */
+    public static float powerGuardDrainPerSecond(float maxStamina, float percent, float flat) {
+        return maxStamina * (percent / 100f) + flat;
+    }
+
     /** Runtime overload: PvE vs PvP exponent per {@link Config#pvpMode()} is resolved by the caller. */
     public static float staminaCost(float dmg, float gb, float pfix) {
         return staminaCost(dmg, gb, Config.mfix(), pfix, Config.minCostPerGuard(), Config.maxCostPerGuard());
