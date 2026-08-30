@@ -25,6 +25,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingShieldBlockEvent;
 import net.neoforged.neoforge.event.level.ExplosionKnockbackEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * T-24: the guard arbitration entry point (Spec §5.4).
@@ -107,7 +108,7 @@ public final class GuardResolver {
     /** T-28: halve the knockback vector of an explosion the player just blocked. */
     @SubscribeEvent
     static void onExplosionKnockback(ExplosionKnockbackEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
+        if (!(event.getAffectedEntity() instanceof ServerPlayer player)) {
             return;
         }
         if (EXPLOSION_BLOCKED.remove(player.getUUID())) {
@@ -117,8 +118,8 @@ public final class GuardResolver {
     }
 
     /** Safety valve: stale explosion markers must never survive into the next tick. */
-    @net.neoforged.bus.api.SubscribeEvent
-    static void onServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
+    @SubscribeEvent
+    static void onServerTick(ServerTickEvent.Post event) {
         if (!EXPLOSION_BLOCKED.isEmpty()) {
             EXPLOSION_BLOCKED.clear();
         }
