@@ -143,7 +143,7 @@ class GuardRulesTest {
             }
         }
         assertEquals(crossings, fired);
-        assertEquals(4, fired);
+        assertEquals(7, fired); // 8 alternating values starting un-depleted -> 7 transitions
     }
 
     // ------------------------------------------------------------------

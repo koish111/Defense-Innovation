@@ -1,7 +1,6 @@
 package com.example.blockmod.state;
 
-import java.util.UUID;
-
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 
 /**
@@ -18,7 +17,7 @@ public final class GuardStateData {
     private boolean powerGuarding;
     private long bashWindupEndTick = -1L;
     private long bashReadyTick = -1L;
-    private UUID activeMoveMalusUuid;
+    private ResourceLocation activeMoveMalusId;
     private boolean wasDepleted;
 
     public boolean isGuarding() {
@@ -85,12 +84,17 @@ public final class GuardStateData {
         this.bashReadyTick = bashReadyTick;
     }
 
-    public UUID activeMoveMalusUuid() {
-        return activeMoveMalusUuid;
+    /**
+     * Id of the currently mounted move-speed modifier; null = none.
+     * Spec §4.3.3 named this field a UUID, but 1.20.5+ keys attribute modifiers by
+     * ResourceLocation (verified in M0, API-10) so the type follows the platform.
+     */
+    public ResourceLocation activeMoveMalusId() {
+        return activeMoveMalusId;
     }
 
-    public void setActiveMoveMalusUuid(UUID activeMoveMalusUuid) {
-        this.activeMoveMalusUuid = activeMoveMalusUuid;
+    public void setActiveMoveMalusId(ResourceLocation activeMoveMalusId) {
+        this.activeMoveMalusId = activeMoveMalusId;
     }
 
     /** Previous tick's depletion state, for detecting the crossing of zero (v2.0). */
@@ -108,6 +112,6 @@ public final class GuardStateData {
                 + ", parryWindowEnd=" + parryWindowEndTick + ", parryUsed=" + parryUsed
                 + ", parryReady=" + parryReadyTick + ", powerGuarding=" + powerGuarding
                 + ", bashWindupEnd=" + bashWindupEndTick + ", bashReady=" + bashReadyTick
-                + ", malusUuid=" + activeMoveMalusUuid + ", wasDepleted=" + wasDepleted + "]";
+                + ", malusId=" + activeMoveMalusId + ", wasDepleted=" + wasDepleted + "]";
     }
 }
