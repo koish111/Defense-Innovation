@@ -5,6 +5,8 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 
 import com.example.blockmod.config.Config;
+import com.example.blockmod.registry.ModDataComponents;
+import com.example.blockmod.registry.ModDataMaps;
 
 @Mod(BlockMod.MODID)
 public final class BlockMod {
@@ -15,5 +17,8 @@ public final class BlockMod {
 
         Config.register(modContainer);
         modEventBus.addListener(Config::onConfigLoad);
+
+        ModDataComponents.DATA_COMPONENTS.register(modEventBus);
+        modEventBus.addListener(ModDataMaps::onRegisterDataMapTypes);
     }
 }
