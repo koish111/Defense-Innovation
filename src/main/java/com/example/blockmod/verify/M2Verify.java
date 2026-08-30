@@ -52,14 +52,16 @@ public final class M2Verify {
         // 枯竭负值 + 格挡: 8/s beats guard halving
         r = drive(player, -10.0f, true, false, 0L, 20, -2.0f);
         log(r);
-        // 枯竭零值: st=0 -> depleted branch
-        r = drive(player, 0.0f, false, false, 0L, 20, 8.0f);
+        // 枯竭零值: st=0 crosses 0 on the first tick (+0.4), then the normal branch takes
+        // over for the remaining 19 ticks (+0.2 each) -> 0.4 + 3.8 = 4.2 (FR-02 rule 4).
+        r = drive(player, 0.0f, false, false, 0L, 20, 4.2f);
         log(r);
-        // 枯竭且PG: depleted beats the PG suppression
-        r = drive(player, -5.0f, true, true, 0L, 20, 3.0f);
+        // 枯竭且PG (no guard => no drain): depleted 8/s beats the PG suppression. 5 ticks
+        // keep stamina negative the whole window -> -5 + 2.0 = -3.0 (PG would hold -5).
+        r = drive(player, -5.0f, false, true, 0L, 5, -3.0f);
         log(r);
-        // 强力防御: 0 regen
-        r = drive(player, 20.0f, true, true, 0L, 20, 20.0f);
+        // 强力防御持续消耗: drain = max × 5% / 20 ticks = 0.1/tick -> 20 - 2 = 18 (§5.3.1 step 1)
+        r = drive(player, 20.0f, true, true, 0L, 20, 18.0f);
         log(r);
         // 上限钳制
         r = drive(player, 39.9f, false, false, 0L, 40, 40.0f);

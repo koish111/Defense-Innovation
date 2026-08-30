@@ -28,6 +28,10 @@ public final class BlockModLogger {
         LOG.info("[BP] {} {}", event, kv(kvs));
     }
 
+    public static void debug(String event, Object... kvs) {
+        LOG.debug("[BP] {} {}", event, kv(kvs));
+    }
+
     public static void warn(String event, Object... kvs) {
         LOG.warn("[BP] {} {}", event, kv(kvs));
     }
