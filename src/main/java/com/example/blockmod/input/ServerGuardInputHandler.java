@@ -60,6 +60,10 @@ public final class ServerGuardInputHandler {
             if (payload.guarding()) {
                 guardState.setGuardHand(equipment.hand());
                 guardState.setParryUsed(false);
+                // FR-17 decision table: mount the malus immediately on a valid guard enter
+                // (depleted entries are gated out inside apply — staminaPositive check).
+                com.example.blockmod.logic.MovementService.apply(player, guardState, equipment.profile(),
+                        player.getData(ModAttachments.STAMINA.get()).canDefend());
                 // M4 (T-31/T-34) opens the parry window here; M3 keeps the state only.
                 BlockModLogger.info("GUARD_INPUT", "action", "enter", "player", player.getGameProfile().getName(),
                         "hand", equipment.hand());

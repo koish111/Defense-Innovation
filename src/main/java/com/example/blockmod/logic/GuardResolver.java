@@ -64,6 +64,10 @@ public final class GuardResolver {
             GuardContext ctx = buildContext(player, event.getSource(), event.getAmount());
             int result = GuardRules.resolveGuard(ctx.hasProfile(), ctx.guarding(), ctx.staminaPositive(),
                     ctx.frontal(), ctx.damageClass().ordinal(), ctx.inParryWindow());
+            if (Config.verboseLogging() && result != GuardRules.RESULT_GUARDED) {
+                BlockModLogger.info("GUARD", "result", result, "source", event.getSource().getMsgId(),
+                        "class", com.example.blockmod.logic.DamageClassifier.classify(event.getSource()));
+            }
             if (result == GuardRules.RESULT_PARRIED) {
                 // Full parry semantics (deflect/stun/boss counter) land in M4 (T-31..T-34);
                 // the M3 slice already guarantees the cost-free full cancel.
@@ -148,7 +152,9 @@ public final class GuardResolver {
         if (srcPos == null) {
             return false; // E-03: no direction information
         }
-        Vec3 toSelf = new Vec3(srcPos.x - player.getX(), 0.0, srcPos.z - player.getZ());
+        // FR-07: vectorTo(player) — points FROM the source TOWARD the player; facing the
+        // source yields dot ≈ -1, which is what the blocked check expects.
+        Vec3 toSelf = new Vec3(player.getX() - srcPos.x, 0.0, player.getZ() - srcPos.z);
         double len = toSelf.horizontalDistance();
         if (len < 1.0e-4) {
             return false; // E-04: directly above/below — no horizontal direction
