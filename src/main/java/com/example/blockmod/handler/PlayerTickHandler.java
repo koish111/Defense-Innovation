@@ -50,6 +50,10 @@ public final class PlayerTickHandler {
             stamina.setStamina(stamina.stamina() - drain);
             if (stamina.stamina() <= 0f) {
                 guardState.setPowerGuarding(false); // FR-16: PG closes itself on depletion
+            } else if (Config.pgDisableJump()) {
+                // §5.7: jump clamp — upward velocity is removed each tick while PG holds
+                double y = player.getDeltaMovement().y;
+                player.setDeltaMovement(0.0, Math.min(y, 0.0), 0.0);
             }
         }
 
@@ -62,12 +66,14 @@ public final class PlayerTickHandler {
         if (guardState.isGuarding() && player.containerMenu != player.inventoryMenu) {
             guardState.setGuarding(false);
             com.example.blockmod.logic.MovementService.remove(player, guardState);
+            com.example.blockmod.logic.PowerGuardService.disarm(player, guardState); // §5.7: PG ends with the guard
             SyncThrottler.forceSync(player);
             com.example.blockmod.BlockModLogger.info("GUARD_INPUT", "action", "container_exit",
                     "player", player.getGameProfile().getName());
         }
 
-        // 3. shield bash windup/cooldown — ShieldBashService.tick lands here in M5.
+        // 3. shield bash windup/cooldown resolution (FR-15 / Spec §5.6)
+        com.example.blockmod.logic.ShieldBashService.tick(player, guardState, now);
 
         // 4. regeneration (FR-02 three-branch selection)
         StaminaService.applyRegenTick(player, stamina, guardState, now);

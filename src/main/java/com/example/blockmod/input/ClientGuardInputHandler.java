@@ -88,6 +88,11 @@ public final class ClientGuardInputHandler {
         }
     }
 
+    /** True while the client believes its guard intent is active (bash trigger gate). */
+    static boolean isGuardIntentSent() {
+        return sentState;
+    }
+
     /** Client-side plausibility gate: synced item tags only (server re-validates). */
     private static boolean plausiblyGuardable(LocalPlayer player) {
         // Swords only guard from the main hand (vanilla cannot raise an offhand sword).

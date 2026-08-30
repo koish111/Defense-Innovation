@@ -1,6 +1,5 @@
 {
   "itemGroup.blockmod": "格挡与招架",
-
   "item.blockmod.wooden_buckler": "木质小圆盾",
   "item.blockmod.iron_buckler": "铁制小圆盾",
   "item.blockmod.diamond_buckler": "钻石小圆盾",
@@ -12,9 +11,9 @@
   "item.blockmod.iron_great_shield": "铁制大盾",
   "item.blockmod.diamond_great_shield": "钻石大盾",
   "item.blockmod.netherite_great_shield": "下界合金大盾",
-
   "effect.blockmod.stun": "眩晕",
-
   "tooltip.blockmod.guard_strength": "防御强度: %s%%",
-  "tooltip.blockmod.power_guard": "强力防御: +%s%%"
+  "tooltip.blockmod.power_guard": "强力防御: +%s%%",
+  "key.categories.blockmod": "格挡与招架",
+  "key.blockmod.power_guard": "强力防御"
 }

@@ -69,6 +69,7 @@ public final class ServerGuardInputHandler {
                         "hand", equipment.hand());
             } else {
                 MovementService.remove(player, guardState);
+                com.example.blockmod.logic.PowerGuardService.disarm(player, guardState); // §5.7: PG ends with the guard
                 // T-34/ADR-07: the re-entry cooldown anchors to the release moment.
                 com.example.blockmod.logic.ParryService.closeWindowOnRelease(player, guardState, now);
                 BlockModLogger.info("GUARD_INPUT", "action", "exit", "player", player.getGameProfile().getName());
