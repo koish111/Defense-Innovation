@@ -30,7 +30,7 @@ public final class PlayerTickHandler {
         tick(player);
     }
 
-    static void tick(ServerPlayer player) {
+    public static void tick(ServerPlayer player) {
         StaminaData stamina = player.getData(ModAttachments.STAMINA.get());
         GuardStateData guardState = player.getData(ModAttachments.GUARD_STATE.get());
         long now = player.level().getGameTime();

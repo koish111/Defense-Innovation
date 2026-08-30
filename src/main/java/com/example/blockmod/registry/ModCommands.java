@@ -1,6 +1,7 @@
 package com.example.blockmod.registry;
 
 import com.example.blockmod.BlockMod;
+import com.example.blockmod.config.Config;
 import com.example.blockmod.logic.StaminaService;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.state.StaminaData;
@@ -52,17 +53,11 @@ public final class ModCommands {
 
     private static int get(CommandSourceStack source, ServerPlayer target) {
         StaminaData stamina = target.getData(ModAttachments.STAMINA.get());
-        source.sendSuccess(() -> Component.literal(
-                String.format("[BlockParry] %s stamina = %.2f / %.2f%s", target.getGameProfile().getName(),
-                        stamina.stamina(), net.minecraft.world.entity.player.Player.MAX_ARMOR_STRENGTH * 0
-                                + staminaMaxFor(target),
-                        stamina.isDepleted() ? " (depleted)" : "")),
-                false);
-        return (int) (stamina.stamina() * 10);
-    }
-
-    private static float staminaMaxFor(ServerPlayer target) {
-        return com.example.blockmod.config.Config.maxStamina();
+        float max = Config.maxStamina();
+        source.sendSuccess(() -> Component.literal(String.format("[BlockParry] %s stamina = %.2f / %.2f%s",
+                target.getGameProfile().getName(), stamina.stamina(), max,
+                stamina.isDepleted() ? " (depleted)" : "")), false);
+        return Math.round(stamina.stamina() * 10.0f);
     }
 
     private static int set(CommandSourceStack source, ServerPlayer target, float value) {
@@ -73,7 +68,7 @@ public final class ModCommands {
     }
 
     private static int fill(CommandSourceStack source, ServerPlayer target) {
-        float max = com.example.blockmod.config.Config.maxStamina();
+        float max = Config.maxStamina();
         StaminaService.setStamina(target, max);
         source.sendSuccess(() -> Component.literal(String.format(
                 "[BlockParry] filled %s stamina to %.2f", target.getGameProfile().getName(), max)), true);
