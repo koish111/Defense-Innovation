@@ -1,6 +1,7 @@
 package com.example.blockmod.handler;
 
 import com.example.blockmod.BlockMod;
+import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.config.Config;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
