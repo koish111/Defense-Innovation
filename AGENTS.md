@@ -322,7 +322,7 @@ and paste the regenerated output. The Spec's tables are **outputs of the formula
 ## 13. Do NOT
 
 1. **Do not use the legacy Capability API.** NeoForge 1.21 uses Attachments.
-2. **Do not add Mixins during MVP.** The design is event-only. If an event genuinely cannot cover a case, record it in `docs/api-verification.md` and raise it before writing a Mixin.
+2. **Do not add Mixins during MVP.** The design is event-only. If an event genuinely cannot cover a case, record it in `docs/api-verification.md` and raise it before writing a Mixin. **Approved exception (2026-08-30):** `mixin/PlayerCanEatMixin` for design gap D-01/FR-03 — the only permitted mixin; any further mixin needs the same record-and-approve flow.
 3. **Do not put gameplay logic on the client.** The client renders and sends intent; nothing more.
 4. **Do not trust client payloads.** Validate state and rate-limit every C2S message.
 5. **Do not hardcode numbers.** Config or `GuardProfile`, never a literal.
