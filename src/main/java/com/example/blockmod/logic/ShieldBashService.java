@@ -114,6 +114,8 @@ public final class ShieldBashService {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.CRIT,
                     player.getX() + look.x * 1.5, player.getEyeY() - 0.2, player.getZ() + look.z * 1.5,
                     10, 0.3, 0.3, 0.3, 0.1);
+            level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_CRIT, player.getSoundSource(), 0.9f, 0.8f);
         }
         return hits;
     }

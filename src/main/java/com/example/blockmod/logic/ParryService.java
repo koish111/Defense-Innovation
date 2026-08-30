@@ -94,7 +94,9 @@ public final class ParryService {
             // non-arrow projectiles are parried without a special handler (FR-13)
         }
         com.example.blockmod.network.SyncThrottler.forceSync(player);
-        // FR-22 MVP feedback: vanilla CRIT burst at the parry point (custom FX is post-MVP)
+        // FR-22 MVP feedback: CRIT burst + the shield break sound marks the parry
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                net.minecraft.sounds.SoundEvents.SHIELD_BREAK, player.getSoundSource(), 0.9f, 1.2f);
         spawnCrit(player.level(), player.getX(), player.getY() + 1.0, player.getZ());
         if (attacker != null) {
             spawnCrit(player.level(), attacker.getX(), attacker.getY() + 1.0, attacker.getZ());

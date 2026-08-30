@@ -95,6 +95,9 @@ public final class StaminaService {
     public static void refreshDepletedState(ServerPlayer player, GuardStateData guardState, boolean depleted) {
         if (depleted) {
             MovementService.remove(player, guardState);
+            // FR-22 MVP: the depletion cue (shield lowering) reuses the vanilla item break sound
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    net.minecraft.sounds.SoundEvents.ITEM_BREAK, player.getSoundSource(), 0.8f, 0.7f);
             BlockModLogger.info("DEPLETED", "phase", "enter", "player", player.getGameProfile().getName());
         } else {
             if (guardState.isGuarding()) {

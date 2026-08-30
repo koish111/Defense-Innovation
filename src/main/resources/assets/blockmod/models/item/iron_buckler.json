@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "minecraft:item/shield_base"
+    "layer0": "blockmod:item/iron_buckler"
   }
 }

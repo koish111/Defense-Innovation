@@ -2,6 +2,7 @@ package com.example.blockmod.registry;
 
 import com.example.blockmod.BlockMod;
 import com.example.blockmod.config.Config;
+import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.logic.StaminaService;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.state.StaminaData;
@@ -51,7 +52,12 @@ public final class ModCommands {
                         .requires(src -> src.hasPermission(2))
                         .executes(ctx -> deplete(ctx.getSource(), ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> deplete(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))));
+                                .executes(ctx -> deplete(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
+                .then(Commands.literal("debug")
+                        .requires(src -> src.hasPermission(2))
+                        .executes(ctx -> debug(ctx.getSource(), ctx.getSource().getPlayerOrException()))
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(ctx -> debug(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))));
     }
 
     private static int get(CommandSourceStack source, ServerPlayer target) {
@@ -85,6 +91,35 @@ public final class ModCommands {
         SyncThrottler.forceSync(target);
         source.sendSuccess(() -> Component.literal(String.format(
                 "[BlockParry] depleted %s", target.getGameProfile().getName())), true);
+        return 1;
+    }
+
+    /** FR-25 / T-41: prints the full server-side state snapshot for one player. */
+    private static int debug(CommandSourceStack source, ServerPlayer target) {
+        StaminaData stamina = target.getData(ModAttachments.STAMINA.get());
+        com.example.blockmod.state.GuardStateData guard = target.getData(ModAttachments.GUARD_STATE.get());
+        com.example.blockmod.logic.GuardEquipmentResolver.GuardEquipment equipment =
+                com.example.blockmod.logic.GuardEquipmentResolver.resolve(target);
+        long now = target.level().getGameTime();
+        String[] snapshot = {
+                "[BlockParry] debug snapshot for " + target.getGameProfile().getName() + " (tick " + now + ")",
+                "  stamina = " + String.format("%.2f / %.2f", stamina.stamina(), Config.maxStamina())
+                        + (stamina.isDepleted() ? "  [DEPLETED]" : ""),
+                "  lastEventTick = " + stamina.lastEventTick(),
+                "  guarding = " + guard.isGuarding() + "  hand = " + guard.guardHand(),
+                "  parryWindowEnd = " + guard.parryWindowEndTick() + "  parryUsed = " + guard.isParryUsed()
+                        + "  parryReadyTick = " + guard.parryReadyTick(),
+                "  powerGuarding = " + guard.isPowerGuarding(),
+                "  bashWindupEnd = " + guard.bashWindupEndTick() + "  bashReady = " + guard.bashReadyTick(),
+                "  moveMalusId = " + guard.activeMoveMalusId(),
+                "  equipment = " + (equipment == null ? "none" : equipment.stack() + " [" + equipment.profile() + "]"),
+                "  moveSpeed = " + target.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED).getValue(),
+        };
+        for (String line : snapshot) {
+            String line0 = line;
+            source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(line0), false);
+            BlockModLogger.info("DEBUG", "line", line0);
+        }
         return 1;
     }
 

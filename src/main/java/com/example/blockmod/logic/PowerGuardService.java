@@ -45,6 +45,8 @@ public final class PowerGuardService {
             return; // E-11/E-19
         }
         guardState.setPowerGuarding(true);
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                net.minecraft.sounds.SoundEvents.EXPERIENCE_ORB_PICKUP, player.getSoundSource(), 0.9f, 0.6f);
         SyncThrottler.forceSync(player);
         BlockModLogger.info("POWER_GUARD", "action", "on", "player", player.getGameProfile().getName());
     }
