@@ -1,9 +1,9 @@
-# Block & Parry（格挡与招架）
+# Defense Innovation（防御革新）
 
 一个 Minecraft **NeoForge 1.21.1** 格挡 mod：用体力管理取代原版"举盾免伤"——格挡消耗体力、
 体力枯竭时防御完全失效且解除减速，掐准时机招架可以零消耗反制。
 
-> 当前版本：MVP（v0.1）。数值与机制详见 `docs/BlockParry-软件规格说明书-v2.0.md`。
+> 当前版本：MVP（v0.1）。
 
 ## 安装
 
