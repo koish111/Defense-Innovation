@@ -1,14 +1,20 @@
 package com.example.blockmod.logic;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import com.example.blockmod.BlockMod;
 import com.example.blockmod.registry.ModEffects;
 
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
@@ -19,49 +25,71 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
  * it is never a punishment for the defender.
  *
  * <p>Movement is resolved after effect ticks, which is why the lockdown runs in
- * {@code LivingTickEvent} handlers instead of {@code MobEffect#applyEffectTick},
- * and why {@code setNoAi(true)} is not used (no effect on players).
+ * tick-event handlers instead of {@code MobEffect#applyEffectTick}, and why
+ * {@code setNoAi(true)} is not used (no effect on players).
+ *
+ * <p><b>Mobs</b> freeze horizontally via a position snapshot: the Pre hook records
+ * X/Z, the Post hook restores them and zeroes the horizontal velocity. The tick
+ * itself keeps running — effect timers decay, invulnerability decays, and the AI
+ * keeps targeting (no aggro loss) — the mob simply cannot go anywhere. Jump arcs
+ * and falling (vertical motion) stay intact. A stunned entity's own attacks are
+ * suppressed in {@link #onStunnedAttacker}.
  */
 @EventBusSubscriber(modid = BlockMod.MODID)
 public final class StunHandler {
+    /** Horizontal snapshot for the current tick, per stunned non-player entity. */
+    private static final Map<UUID, double[]> PREV_HORIZONTAL = new HashMap<>();
+
     private static boolean isStunned(LivingEntity entity) {
         return entity.hasEffect(ModEffects.STUN);
     }
 
-    /**
-     * Lockdown rows 1, 2 and 5. Two very different mechanisms are required:
-     *
-     * <ul>
-     *   <li><b>Mobs</b>: their AI re-computes movement AFTER the Pre hook every tick
-     *       (zeroing the velocity only produces a slow drift — verified in-game), so a
-     *       stunned mob's tick is simply CANCELLED: no movement, no jump, no AI, no
-     *       attacks for the whole stun. Event-only, and {@code setNoAi} stays untouched
-     *       (Spec §5.8).</li>
-     *   <li><b>Players</b>: movement is input-driven on the client
-     *       ({@code ClientStunInputHandler}); the server side zeroes residual velocity,
-     *       clamps jumps and interrupts item use.</li>
-     * </ul>
-     */
     @SubscribeEvent
-    static void onLivingTick(EntityTickEvent.Pre event) {
-        if (event.getEntity() instanceof net.minecraft.world.entity.monster.Monster monster) {
-            if (isStunned(monster)) {
-                event.setCanceled(true); // full freeze — the stun IS the skipped tick
-            }
-            return;
-        }
+    static void onEntityTickPre(EntityTickEvent.Pre event) {
         if (!(event.getEntity() instanceof LivingEntity entity) || !isStunned(entity)) {
             return;
         }
-        double y = entity.getDeltaMovement().y;
-        entity.setDeltaMovement(0.0, Math.min(y, 0.0), 0.0);
-        entity.setSprinting(false);
-        if (entity.isUsingItem()) {
-            entity.stopUsingItem();
+        if (entity instanceof Player player) {
+            // Player lockdown rows: zero residual drift (the real suppression lives in
+            // ClientStunInputHandler on the client side), no jump impulse, no item use.
+            double y = player.getDeltaMovement().y;
+            player.setDeltaMovement(0.0, Math.min(y, 0.0), 0.0);
+            player.setSprinting(false);
+            if (player.isUsingItem()) {
+                player.stopUsingItem();
+            }
+            return;
+        }
+        // Non-player entity: snapshot X/Z so the Post hook can undo the AI's move.
+        PREV_HORIZONTAL.put(entity.getUUID(), new double[]{entity.getX(), entity.getZ()});
+    }
+
+    @SubscribeEvent
+    static void onEntityTickPost(EntityTickEvent.Post event) {
+        if (!(event.getEntity() instanceof LivingEntity entity) || entity instanceof Player) {
+            return;
+        }
+        double[] prev = PREV_HORIZONTAL.remove(entity.getUUID());
+        if (prev == null) {
+            return;
+        }
+        if (isStunned(entity)) {
+            entity.setPos(prev[0], entity.getY(), prev[1]); // horizontal freeze, vertical physics intact
+            Vec3 dm = entity.getDeltaMovement();
+            entity.setDeltaMovement(0.0, dm.y, 0.0);
+        }
+        // stun ended: the entry is simply dropped — the entity resumes normal behaviour
+    }
+
+    /** FR-05 lockdown row 3 for mobs: a stunned entity's own attacks deal no damage. */
+    @SubscribeEvent
+    static void onStunnedAttacker(LivingIncomingDamageEvent event) {
+        if (event.getSource().getEntity() instanceof LivingEntity attacker && isStunned(attacker)) {
+            event.setCanceled(true);
         }
     }
 
-    /** Lockdown row 3: no attacks. */
+    /** Lockdown row 3: no player attacks. */
     @SubscribeEvent
     static void onAttackEntity(AttackEntityEvent event) {
         Player attacker = event.getEntity();
