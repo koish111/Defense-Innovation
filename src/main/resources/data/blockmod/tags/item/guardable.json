@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "#blockmod:bucklers",
+    "#blockmod:medium_shields",
+    "#blockmod:great_shields"
+  ]
+}

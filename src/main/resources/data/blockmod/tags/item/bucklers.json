@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "blockmod:wooden_buckler",
+    "blockmod:iron_buckler",
+    "blockmod:diamond_buckler",
+    "blockmod:netherite_buckler"
+  ]
+}

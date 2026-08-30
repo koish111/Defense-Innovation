@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "blockmod:wooden_great_shield",
+    "blockmod:iron_great_shield",
+    "blockmod:diamond_great_shield",
+    "blockmod:netherite_great_shield"
+  ]
+}

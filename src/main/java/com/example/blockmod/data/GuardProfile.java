@@ -29,6 +29,10 @@ public record GuardProfile(
         float powerGuardBonus,
         boolean durabilityLoss) {
 
+    /** Hard schema bounds from Spec §4.3.1; registration rejects values outside them (FR-19). */
+    public static final float MIN_GB = 0.01f;
+    public static final float MAX_GB = 0.95f;
+
     public static final Codec<GuardProfile> CODEC = RecordCodecBuilder.create(i -> i.group(
             ShieldType.CODEC.fieldOf("type").forGetter(GuardProfile::type),
             Codec.FLOAT.fieldOf("guard_strength").forGetter(GuardProfile::guardStrength),

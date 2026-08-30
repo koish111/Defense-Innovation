@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:player_attack",
+    "minecraft:mob_attack",
+    "minecraft:mob_attack_no_aggro",
+    "minecraft:arrow",
+    "minecraft:trident",
+    "minecraft:mob_projectile",
+    "minecraft:explosion",
+    "minecraft:explosion_player"
+  ]
+}
