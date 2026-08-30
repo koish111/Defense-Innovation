@@ -6,6 +6,7 @@ import net.neoforged.fml.common.Mod;
 
 import com.example.blockmod.config.Config;
 import com.example.blockmod.registry.ModAttachments;
+import com.example.blockmod.registry.ModCreativeTabs;
 import com.example.blockmod.registry.ModDataComponents;
 import com.example.blockmod.registry.ModDataMaps;
 import com.example.blockmod.registry.ModEffects;
@@ -25,6 +26,7 @@ public final class BlockMod {
         ModItems.ITEMS.register(modEventBus);
         ModAttachments.ATTACHMENTS.register(modEventBus);
         ModEffects.EFFECTS.register(modEventBus);
+        ModCreativeTabs.TABS.register(modEventBus);
         modEventBus.addListener(ModDataMaps::onRegisterDataMapTypes);
     }
 }

@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "minecraft:shield",
     "blockmod:reinforced_iron_shield",
     "blockmod:diamond_shield",
     "blockmod:netherite_shield"

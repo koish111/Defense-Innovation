@@ -7,7 +7,6 @@
     "minecraft:arrow",
     "minecraft:trident",
     "minecraft:mob_projectile",
-    "minecraft:explosion",
-    "minecraft:explosion_player"
+    "minecraft:explosion"
   ]
 }

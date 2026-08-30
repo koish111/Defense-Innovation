@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": {
+    "minecraft:shield": {
+      "type": "medium",
+      "guard_strength": 0.40,
+      "parry_window_ticks": 0,
+      "move_speed_malus": -0.70,
+      "power_guard_bonus": 0.0,
+      "durability_loss": true
+    }
+  }
+}
