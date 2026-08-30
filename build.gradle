@@ -28,7 +28,9 @@ sourceSets.main.resources {
 }
 
 repositories {
-    // Add here additional repositories if required by some of the dependencies below.
+    // Unit-test dependencies (JUnit) and any future third-party libraries resolve here;
+    // maven.neoforged.net is added automatically by ModDevGradle for NeoForge artifacts.
+    mavenCentral()
 }
 
 base {
@@ -116,6 +118,10 @@ configurations {
 }
 
 dependencies {
+    // Pure-function unit tests (AGENTS.md §10 — JUnit 5, no Minecraft bootstrap).
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"
@@ -175,6 +181,11 @@ publishing {
             url "file://${project.projectDir}/repo"
         }
     }
+}
+
+// Pure-function unit tests run on JUnit 5 (AGENTS.md §10).
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }
 
 tasks.withType(JavaCompile).configureEach {
