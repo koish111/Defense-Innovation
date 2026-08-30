@@ -8,7 +8,6 @@ import com.example.blockmod.registry.ModTags;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.tags.ItemTags;
-import net.minecraft.world.InteractionHand;
 
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -91,12 +90,10 @@ public final class ClientGuardInputHandler {
 
     /** Client-side plausibility gate: synced item tags only (server re-validates). */
     private static boolean plausiblyGuardable(LocalPlayer player) {
+        // Swords only guard from the main hand (vanilla cannot raise an offhand sword).
         return player.getOffhandItem().is(ModTags.ITEMS_GUARDABLE)
                 || player.getMainHandItem().is(ModTags.ITEMS_GUARDABLE)
-                || player.getOffhandItem().is(ItemTags.SWORDS)
-                || player.getMainHandItem().is(ItemTags.SWORDS)
-                || player.getItemInHand(InteractionHand.MAIN_HAND).is(ModTags.ITEMS_GUARDABLE)
-                || player.getItemInHand(InteractionHand.OFF_HAND).is(ModTags.ITEMS_GUARDABLE);
+                || player.getMainHandItem().is(ItemTags.SWORDS);
     }
 
     private static boolean lookingAtBlock(Minecraft minecraft) {

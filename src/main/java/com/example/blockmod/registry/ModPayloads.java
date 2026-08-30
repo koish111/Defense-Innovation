@@ -1,19 +1,19 @@
 package com.example.blockmod.registry;
 
 import com.example.blockmod.client.ClientGuardState;
+import com.example.blockmod.input.ServerGuardInputHandler;
 import com.example.blockmod.network.ConfigSyncPayload;
+import com.example.blockmod.network.GuardInputPayload;
 import com.example.blockmod.network.StaminaSyncPayload;
 
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 /**
- * Network protocol registration (Spec §5.13). M2 wires the S2C mirror payloads;
- * M3/M5 add the C2S intent payloads onto the same registrar.
- *
- * <p>The client handlers are method references into {@link ClientGuardState}: the
- * referenced class only loads when a payload actually arrives, so the dedicated
- * server never touches client classes.
+ * Network protocol registration (Spec §5.13): M2 wired the S2C mirror payloads,
+ * M3 adds the C2S guard intent. Handlers referencing client classes are method
+ * references whose targets only load when a payload actually arrives, so the
+ * dedicated server never touches client classes.
  */
 public final class ModPayloads {
     public static void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event) {
@@ -22,6 +22,8 @@ public final class ModPayloads {
                 (payload, context) -> ClientGuardState.acceptStaminaSync(payload));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
                 (payload, context) -> ClientGuardState.acceptConfigSync(payload));
+        registrar.playToServer(GuardInputPayload.TYPE, GuardInputPayload.STREAM_CODEC,
+                (payload, context) -> ServerGuardInputHandler.handle((net.minecraft.server.level.ServerPlayer) context.player(), payload));
     }
 
     private ModPayloads() {}

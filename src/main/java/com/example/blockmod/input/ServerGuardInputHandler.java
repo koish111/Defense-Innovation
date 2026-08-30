@@ -8,19 +8,21 @@ import com.example.blockmod.BlockMod;
 import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.config.Config;
 import com.example.blockmod.logic.GuardEquipmentResolver;
+import com.example.blockmod.logic.GuardEquipmentResolver.GuardEquipment;
 import com.example.blockmod.logic.MovementService;
 import com.example.blockmod.network.GuardInputPayload;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
 import com.example.blockmod.state.GuardStateData;
 
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 /**
  * T-27 server side: turns validated client guard intent into the authoritative
@@ -43,9 +45,10 @@ public final class ServerGuardInputHandler {
     public static void handle(ServerPlayer player, GuardInputPayload payload) {
         long now = player.level().getGameTime();
         if (!consumeRateToken(player, now)) {
-            return; // E-12: over the limit — drop silently (WARN throttled by the token bucket)
+            return; // E-12: over the limit — drop
         }
-        if (payload.guarding() && GuardEquipmentResolver.resolve(player) == null) {
+        GuardEquipment equipment = payload.guarding() ? GuardEquipmentResolver.resolve(player) : null;
+        if (payload.guarding() && equipment == null) {
             BlockModLogger.warn("GUARD_INPUT", "action", "rejected", "player", player.getGameProfile().getName(),
                     "reason", "no guardable equipment");
             return; // E-11: no shield/sword — ignore the request
@@ -54,11 +57,12 @@ public final class ServerGuardInputHandler {
         GuardStateData guardState = player.getData(ModAttachments.GUARD_STATE.get());
         if (guardState.isGuarding() != payload.guarding()) {
             guardState.setGuarding(payload.guarding());
-            guardState.setGuardHand(payload.guarding() ? guardHand(player) : guardState.guardHand());
             if (payload.guarding()) {
+                guardState.setGuardHand(equipment.hand());
                 guardState.setParryUsed(false);
                 // M4 (T-31/T-34) opens the parry window here; M3 keeps the state only.
-                BlockModLogger.info("GUARD_INPUT", "action", "enter", "player", player.getGameProfile().getName());
+                BlockModLogger.info("GUARD_INPUT", "action", "enter", "player", player.getGameProfile().getName(),
+                        "hand", equipment.hand());
             } else {
                 MovementService.remove(player, guardState);
                 BlockModLogger.info("GUARD_INPUT", "action", "exit", "player", player.getGameProfile().getName());
@@ -66,15 +70,6 @@ public final class ServerGuardInputHandler {
         }
         LAST_INPUT_TICK.put(player.getUUID(), now);
         SyncThrottler.forceSync(player); // guard enter/exit always syncs immediately (FR-23)
-    }
-
-    private static net.minecraft.world.InteractionHand guardHand(ServerPlayer player) {
-        // FR-11: the offhand wins whenever it can guard; the resolver already ran above.
-        return player.getOffhandItem().isEmpty()
-                || com.example.blockmod.logic.GuardEquipmentResolver.resolve(player).slot()
-                        == net.minecraft.world.entity.EquipmentSlot.MAINHAND
-                ? net.minecraft.world.InteractionHand.MAIN_HAND
-                : net.minecraft.world.InteractionHand.OFF_HAND;
     }
 
     /** E-12: token bucket — one second windows, {@code c2s_rate_limit_per_second} tokens each. */
@@ -95,10 +90,14 @@ public final class ServerGuardInputHandler {
     /** R-07: drop guards whose client stopped sending heartbeats. */
     @SubscribeEvent
     static void onServerTick(ServerTickEvent.Post event) {
-        MinecraftServerHolder.server().getPlayerList().getPlayers().forEach(player -> {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            return;
+        }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             GuardStateData guardState = player.getData(ModAttachments.GUARD_STATE.get());
             if (!guardState.isGuarding()) {
-                return;
+                continue;
             }
             Long last = LAST_INPUT_TICK.get(player.getUUID());
             long now = player.level().getGameTime();
@@ -109,7 +108,7 @@ public final class ServerGuardInputHandler {
                 BlockModLogger.warn("GUARD_INPUT", "action", "timeout_drop", "player",
                         player.getGameProfile().getName());
             }
-        });
+        }
     }
 
     @SubscribeEvent
@@ -119,14 +118,4 @@ public final class ServerGuardInputHandler {
     }
 
     private ServerGuardInputHandler() {}
-
-    /** Minimal indirection so the tick handler does not capture the server instance. */
-    private static final class MinecraftServerHolder {
-        static net.minecraft.server.MinecraftServer server() {
-            return net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
-        }
-    }
-
-    private static void unused(PacketDistributor packetDistributor) {
-    }
 }
