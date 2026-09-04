@@ -118,6 +118,13 @@ public final class Config {
     private static final ModConfigSpec.ConfigValue<String> PG_KEY;
 
     // ==================================================================
+    // [greatshield]
+    // ==================================================================
+    private static final ModConfigSpec.ConfigValue<Double> GREAT_BLOCK_KNOCKBACK_BLOCKS;
+    private static final ModConfigSpec.ConfigValue<Double> GREAT_PG_BLOCK_KNOCKBACK_BLOCKS;
+    private static final ModConfigSpec.ConfigValue<Double> GREAT_PG_KNOCKBACK_RANGE_BLOCKS;
+
+    // ==================================================================
     // [durability]
     // ==================================================================
     private static final ModConfigSpec.ConfigValue<Integer> MIN_DAMAGE_FOR_DURABILITY_LOSS;
@@ -211,6 +218,12 @@ public final class Config {
         PG_DISABLE_JUMP = BUILDER.comment("FR-16: jumping is disabled during power guard.").define("disable_jump", true);
         PG_SUSPEND_REGEN = BUILDER.comment("ADR-08: stamina regen is suspended during power guard.").define("suspend_regen", true);
         PG_KEY = BUILDER.comment("FR-16: key binding name for power guard (client display only).").define("key", "key.keyboard.left.alt", o -> o instanceof String s && !s.isBlank());
+        BUILDER.pop();
+
+        BUILDER.comment("Great-shield perks (designer ruling 2026-09-04).").push("greatshield");
+        GREAT_BLOCK_KNOCKBACK_BLOCKS = defineDouble("Knockback (blocks) applied to the attacker on a successful great-shield block. Ranged attackers are exempt. 0 disables.", "block_knockback_blocks", 1.0, 0.0, 20.0);
+        GREAT_PG_BLOCK_KNOCKBACK_BLOCKS = defineDouble("Knockback (blocks) applied to every frontal entity on a successful block while power guard holds. Replaces block_knockback_blocks. 0 disables.", "power_guard_block_knockback_blocks", 2.0, 0.0, 20.0);
+        GREAT_PG_KNOCKBACK_RANGE_BLOCKS = defineDouble("Reach (blocks) of the power-guard frontal knockback arc.", "power_guard_knockback_range_blocks", 3.0, 1.0, 10.0);
         BUILDER.pop();
 
         BUILDER.push("durability");
@@ -307,6 +320,11 @@ public final class Config {
     public static boolean pgDisableJump() { return PG_DISABLE_JUMP.get(); }
     public static boolean pgSuspendRegen() { return PG_SUSPEND_REGEN.get(); }
     public static String pgKey() { return PG_KEY.get(); }
+
+    // [greatshield]
+    public static float greatshieldBlockKnockbackBlocks() { return GREAT_BLOCK_KNOCKBACK_BLOCKS.get().floatValue(); }
+    public static float greatshieldPgBlockKnockbackBlocks() { return GREAT_PG_BLOCK_KNOCKBACK_BLOCKS.get().floatValue(); }
+    public static float greatshieldPgKnockbackRangeBlocks() { return GREAT_PG_KNOCKBACK_RANGE_BLOCKS.get().floatValue(); }
 
     // [durability]
     public static int minDamageForDurabilityLoss() { return MIN_DAMAGE_FOR_DURABILITY_LOSS.get(); }

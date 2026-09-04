@@ -123,6 +123,26 @@ public final class GuardRules {
     }
 
     // ------------------------------------------------------------------
+    // Designer ruling 2026-09-04: great-shield shove on a successful block
+
+    /** Shove modes returned by {@link #greatshieldShoveMode}. */
+    public static final int SHOVE_NONE = 0;
+    public static final int SHOVE_ATTACKER = 1;
+    public static final int SHOVE_FRONTAL_AREA = 2;
+
+    /**
+     * Great-shield shove decision: a successful block knocks the attacker back;
+     * while power guard holds, the shove becomes a frontal area push that
+     * replaces the single-attacker knockback.
+     */
+    public static int greatshieldShoveMode(boolean greatShield, boolean powerGuarding) {
+        if (!greatShield) {
+            return SHOVE_NONE;
+        }
+        return powerGuarding ? SHOVE_FRONTAL_AREA : SHOVE_ATTACKER;
+    }
+
+    // ------------------------------------------------------------------
     // C4 frontal check (FR-07, E-03/E-04)
 
     /**

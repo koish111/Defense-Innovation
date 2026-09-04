@@ -88,6 +88,7 @@ public final class GuardResolver {
                     REENTRANCY.remove(player.getUUID());
                 }
                 applyKnockbackReduction(ctx);
+                GreatshieldService.onBlocked(ctx.player(), ctx.source(), ctx.equipment(), ctx.guardState());
             }
         } catch (Throwable t) {
             // E-24: a guard bug must never make a player invulnerable — let the damage through.
