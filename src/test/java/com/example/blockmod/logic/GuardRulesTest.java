@@ -166,4 +166,19 @@ class GuardRulesTest {
     void moveMalusZeroSkipsMount() {
         assertFalse(GuardRules.shouldApplyMalus(true, true, 0.0f));
     }
+
+    // ------------------------------------------------------------------
+    // greatshieldShove_* rows (designer ruling 2026-09-04)
+
+    @ParameterizedTest(name = "[{index}] great={0} pg={1} -> mode={2}")
+    @CsvSource({
+            "false, false, 0",   // greatshieldShove_非大盾: 无击退
+            "false, true,  0",   // greatshieldShove_非大盾且PG: 小圆/中盾/剑无 PG,更无击退
+            "true,  false, 1",   // greatshieldShove_大盾格挡: 攻击者被击退 1 格
+            "true,  true,  2"    // greatshieldShove_大盾PG: 改为前方群体击退,替换单体
+    })
+    @DisplayName("greatshieldShove_模式选择")
+    void greatshieldShoveModeDecision(boolean greatShield, boolean powerGuarding, int expected) {
+        assertEquals(expected, GuardRules.greatshieldShoveMode(greatShield, powerGuarding));
+    }
 }

@@ -26,8 +26,8 @@ import org.jetbrains.annotations.Nullable;
  * FROM RESOLUTION (ADR-11). The guard state is kept through the whole bash.
  */
 public final class ShieldBashService {
-    /** O-08 calibration: knockback_blocks (4.0) → velocity impulse K ≈ 0.9. */
-    private static final float KNOCKBACK_CONVERSION = 0.225f;
+    /** O-08 calibration: knockback_blocks (4.0) → velocity impulse K ≈ 0.9. Shared with the great-shield shove. */
+    public static final float KNOCKBACK_CONVERSION = 0.225f;
 
     private ShieldBashService() {}
 
