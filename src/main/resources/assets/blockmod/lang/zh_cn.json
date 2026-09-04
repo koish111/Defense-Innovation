@@ -1,5 +1,5 @@
 {
-  "itemGroup.blockmod": "格挡与招架",
+  "itemGroup.blockmod": "防御革新",
   "item.blockmod.wooden_buckler": "木质小圆盾",
   "item.blockmod.iron_buckler": "铁制小圆盾",
   "item.blockmod.diamond_buckler": "钻石小圆盾",
@@ -14,6 +14,6 @@
   "effect.blockmod.stun": "眩晕",
   "tooltip.blockmod.guard_strength": "防御强度: %s%%",
   "tooltip.blockmod.power_guard": "强力防御: +%s%%",
-  "key.categories.blockmod": "格挡与招架",
+  "key.categories.blockmod": "防御革新",
   "key.blockmod.power_guard": "强力防御"
 }
