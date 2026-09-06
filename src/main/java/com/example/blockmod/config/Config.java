@@ -68,6 +68,7 @@ public final class Config {
     private static final ModConfigSpec.ConfigValue<Double> MIN_COST_PER_GUARD;
     private static final ModConfigSpec.ConfigValue<Double> MAX_COST_PER_GUARD_MULTIPLIER;
     private static final ModConfigSpec.ConfigValue<Double> NEGATIVE_SYNC_CLAMP;
+    private static final ModConfigSpec.ConfigValue<Double> DEPLETION_FLOOR_DEPTH;
 
     // ==================================================================
     // [guard]
@@ -152,6 +153,11 @@ public final class Config {
     private static final ModConfigSpec.ConfigValue<String> UNKNOWN_SHIELD_DEFAULT;
 
     // ==================================================================
+    // [sound]
+    // ==================================================================
+    private static final ModConfigSpec.ConfigValue<Double> SOUND_PITCH_JITTER;
+
+    // ==================================================================
     // [debug]
     // ==================================================================
     private static final ModConfigSpec.BooleanValue VERBOSE_LOGGING;
@@ -174,6 +180,7 @@ public final class Config {
         MIN_COST_PER_GUARD = defineDouble("ADR-09: lower clamp for a single blocked hit's stamina cost.", "min_cost_per_guard", 0.5, 0.0, 100.0);
         MAX_COST_PER_GUARD_MULTIPLIER = defineDouble("Upper clamp for a single blocked hit's cost, relative to max_stamina.", "max_cost_per_guard_multiplier", 2.0, 0.1, 10.0);
         NEGATIVE_SYNC_CLAMP = defineDouble("O-16: display clamp for the stamina value synced to clients.", "negative_sync_clamp", -40.0, -1000.0, 0.0);
+        DEPLETION_FLOOR_DEPTH = defineDouble("Designer ruling 2026-09-06: crossing into depletion pushes stamina at least this far below zero; a hit that lands deeper keeps its depth. 0 = disabled.", "depletion_floor_depth", 24.0, 0.0, 1000.0);
         BUILDER.pop();
 
         BUILDER.comment("Guard formulas and combat-wide rules.").push("guard");
@@ -249,6 +256,10 @@ public final class Config {
         UNKNOWN_SHIELD_DEFAULT = defineWhitelist("FR-27 (post-MVP): classification for third-party shields without a profile.", "unknown_shield_default", "medium", List.of("none", "buckler", "medium", "great"));
         BUILDER.pop();
 
+        BUILDER.push("sound");
+        SOUND_PITCH_JITTER = defineDouble("T-40: random pitch jitter (±) applied to every mod sound cue so repeats are not monotone.", "pitch_jitter", 0.05, 0.0, 0.5);
+        BUILDER.pop();
+
         BUILDER.push("debug");
         VERBOSE_LOGGING = BUILDER.comment("Emit verbose [BP] diagnostics for guard/parry resolution.").define("verbose_logging", false);
         LOG_EVENT_BUFFER_SIZE = defineInt("Size of the in-memory recent-events ring used by /blockparry debug.", "log_event_buffer_size", 100, 10, 10000);
@@ -267,6 +278,7 @@ public final class Config {
     public static float regenDelaySeconds() { return REGEN_DELAY.get().floatValue(); }
     public static float guardRegenMultiplier() { return GUARD_REGEN_MULTIPLIER.get().floatValue(); }
     public static float depletedRegenRate() { return DEPLETED_REGEN_RATE.get().floatValue(); }
+    public static float depletionFloorDepth() { return DEPLETION_FLOOR_DEPTH.get().floatValue(); }
     public static boolean depletedRemoveMoveMalus() { return DEPLETED_REMOVE_MOVE_MALUS.get(); }
     public static float depletedDamageReduction() { return DEPLETED_DAMAGE_REDUCTION.get().floatValue(); }
     public static int depletionHysteresisTicks() { return DEPLETION_HYSTERESIS_TICKS.get(); }
@@ -344,6 +356,9 @@ public final class Config {
     // [compat]
     public static List<? extends String> compatDisabledByModids() { return COMPAT_DISABLED_BY_MODIDS.get(); }
     public static String unknownShieldDefault() { return UNKNOWN_SHIELD_DEFAULT.get(); }
+
+    // [sound]
+    public static float soundPitchJitter() { return SOUND_PITCH_JITTER.get().floatValue(); }
 
     // [debug]
     public static boolean verboseLogging() { return VERBOSE_LOGGING.get(); }

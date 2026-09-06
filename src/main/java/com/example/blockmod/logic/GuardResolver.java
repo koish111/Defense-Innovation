@@ -9,9 +9,11 @@ import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.config.Config;
 import com.example.blockmod.data.DamageClass;
 import com.example.blockmod.data.GuardProfile;
+import com.example.blockmod.data.ShieldType;
 import com.example.blockmod.logic.GuardEquipmentResolver.GuardEquipment;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
+import com.example.blockmod.registry.ModSounds;
 import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
 
@@ -193,9 +195,10 @@ public final class GuardResolver {
             StaminaService.refreshDepletedState(ctx.player(), guardState, guardState.wasDepleted());
         }
 
-        // 9. immediate sync; FR-22 MVP feedback: CRIT burst + the vanilla shield block sound
-        ctx.player().level().playSound(null, ctx.player().getX(), ctx.player().getY(), ctx.player().getZ(),
-                net.minecraft.sounds.SoundEvents.SHIELD_BLOCK, ctx.player().getSoundSource(), 0.8f, 1.0f);
+        // 9. immediate sync; FR-22 MVP feedback: CRIT burst + the blocked cue
+        // (T-40: custom sounds split by equipment class; shield picks a random 1/2 variant).
+        ModSounds.play(ctx.player(), equipment.profile().type() == ShieldType.SWORD
+                ? ModSounds.SWORD_BLOCKED : ModSounds.METAL_SHIELD_BLOCKED, 0.8f, 1.0f);
         if (ctx.player().level() instanceof net.minecraft.server.level.ServerLevel level) {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.CRIT,
                     ctx.player().getX(), ctx.player().getY() + 1.0, ctx.player().getZ(), 8, 0.3, 0.3, 0.3, 0.1);

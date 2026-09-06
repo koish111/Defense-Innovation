@@ -7,6 +7,7 @@ import com.example.blockmod.data.GuardProfile;
 import com.example.blockmod.data.ShieldType;
 import com.example.blockmod.registry.ModAttachments;
 import com.example.blockmod.registry.ModEffects;
+import com.example.blockmod.registry.ModSounds;
 import com.example.blockmod.registry.ModTags;
 import com.example.blockmod.state.GuardStateData;
 
@@ -94,9 +95,9 @@ public final class ParryService {
             // non-arrow projectiles are parried without a special handler (FR-13)
         }
         com.example.blockmod.network.SyncThrottler.forceSync(player);
-        // FR-22 MVP feedback: CRIT burst + the shield break sound marks the parry
-        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
-                net.minecraft.sounds.SoundEvents.SHIELD_BREAK, player.getSoundSource(), 0.9f, 1.2f);
+        // FR-22 MVP feedback: CRIT burst + the parry cue (T-40: split by equipment class).
+        ModSounds.play(player, profile.type() == ShieldType.SWORD
+                ? ModSounds.SWORD_PARRY : ModSounds.SHIELD_PARRY, 0.9f, 1.2f);
         spawnCrit(player.level(), player.getX(), player.getY() + 1.0, player.getZ());
         if (attacker != null) {
             spawnCrit(player.level(), attacker.getX(), attacker.getY() + 1.0, attacker.getZ());

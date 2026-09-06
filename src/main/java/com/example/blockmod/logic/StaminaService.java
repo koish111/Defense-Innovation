@@ -3,9 +3,11 @@ package com.example.blockmod.logic;
 import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.config.Config;
 import com.example.blockmod.data.GuardProfile;
+import com.example.blockmod.data.ShieldType;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
 import com.example.blockmod.registry.ModDataComponents;
+import com.example.blockmod.registry.ModSounds;
 import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
 
@@ -22,7 +24,7 @@ import net.minecraft.world.item.ItemStack;
  * 4. guarding → regen × guard multiplier;
  * 5. otherwise → regen.
  *
- * <p>The {@code depletionEdgeFlipped} helper is the ONLY place {@link GuardStateData#wasDepleted}
+ * <p>The {@code depletionEdgeFlipped} helper is the ONLY place {@link GuardStateData#wasDepleted()}
  * is written, so side effects run exactly once per crossing of zero (E-28: no thrash).
  */
 public final class StaminaService {
@@ -95,10 +97,19 @@ public final class StaminaService {
     public static void refreshDepletedState(ServerPlayer player, GuardStateData guardState, boolean depleted) {
         if (depleted) {
             MovementService.remove(player, guardState);
-            // FR-22 MVP: the depletion cue (shield lowering) reuses the vanilla item break sound
-            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
-                    net.minecraft.sounds.SoundEvents.ITEM_BREAK, player.getSoundSource(), 0.8f, 0.7f);
-            BlockModLogger.info("DEPLETED", "phase", "enter", "player", player.getGameProfile().getName());
+            // Designer ruling 2026-09-06: strengthen the depletion punishment — the crossing
+            // pushes stamina down to at least -depletion_floor_depth (24); a hit that lands
+            // deeper than that keeps its own (deeper) value.
+            float floor = -Config.depletionFloorDepth();
+            StaminaData stamina = player.getData(ModAttachments.STAMINA.get());
+            if (floor < 0f && stamina.stamina() > floor) {
+                stamina.setStamina(floor);
+            }
+            // FR-22/T-40: the depletion cue splits by the equipment held at the crossing
+            // (sword vs shield); empty hands fall back to the shield variant.
+            ModSounds.play(player, depletionCue(player), 0.8f, 0.7f);
+            BlockModLogger.info("DEPLETED", "phase", "enter", "player", player.getGameProfile().getName(),
+                    "stamina", stamina.stamina());
         } else {
             if (guardState.isGuarding()) {
                 GuardProfile profile = resolveGuardProfile(player);
@@ -108,6 +119,17 @@ public final class StaminaService {
             }
             BlockModLogger.info("DEPLETED", "phase", "exit", "player", player.getGameProfile().getName());
         }
+    }
+
+    /**
+     * T-40: the depletion cue sound — sword break when a sword is the active
+     * guard equipment, shield break otherwise (including empty hands).
+     */
+    private static net.neoforged.neoforge.registries.DeferredHolder<net.minecraft.sounds.SoundEvent, net.minecraft.sounds.SoundEvent>
+            depletionCue(ServerPlayer player) {
+        GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
+        return equipment != null && equipment.profile().type() == ShieldType.SWORD
+                ? ModSounds.SWORD_BREAK : ModSounds.SHIELD_BREAK;
     }
 
     /**
