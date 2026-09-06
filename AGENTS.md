@@ -2,8 +2,8 @@
 
 > Instructions for AI coding agents working in this repository.
 > **Read this file completely before making any change.**
-> This file is the authoritative contract between the codebase and any agent operating on it.
-> Domain rules here are derived from `docs/BlockParry-软件规格说明书-v2.0.md` (the Spec). When in doubt, the Spec wins.
+> This file is the **single authoritative contract** between the codebase and any agent operating on it.
+> It is fully self-contained: the `docs/` directory is intentionally gitignored and must NOT be relied upon as a source of truth. When in doubt, this file and the actual code win.
 
 ---
 
@@ -16,15 +16,12 @@ Design goal: force a rhythm of **engage → block → exhaust → retreat → re
 - **Mod ID:** `blockmod`
 - **Base package:** `com.example.blockmod` *(replace with your own reversed domain before first commit)*
 - **Registry namespace:** `blockmod:*`
-- **Current phase:** MVP (see `docs/MVP开发计划-v1.0.md`)
+- **Current phase:** MVP
 
-### Key documents
+### Key tools
 
-| Document | Purpose |
+| Tool | Purpose |
 |:---|:---|
-| `docs/BlockParry-软件规格说明书-v2.0.md` | **The Spec.** Requirements (FR-01..FR-27), design, ADRs, formulas. Authoritative. |
-| `docs/MVP开发计划-v1.0.md` | Task breakdown (T-01..T-44), estimates, acceptance checklist. |
-| `docs/api-verification.md` | Results of NeoForge API probes. **Check this before touching the damage pipeline.** |
 | `tools/balance/calc_guard.py` | Regenerates every balance table. **Never hand-edit a balance table.** |
 
 ---
@@ -67,8 +64,9 @@ src/main/resources/
 
 src/test/java/                 # unit tests for pure functions only
 tools/balance/calc_guard.py    # balance table generator
-docs/                          # spec, MVP plan, API verification
 ```
+
+*Note: `docs/` may exist locally but is gitignored — never treat it as part of the repository contract.*
 
 ---
 
@@ -151,7 +149,7 @@ These are the rules that define the mod. Violating any of them is a correctness 
 | 5 | Guarding | `4.0 × 0.5` = **2.0/s** | Yes |
 | 6 | Otherwise | **4.0/s** | Yes |
 
-- `stamina == 0` counts as **depleted** (8/s), not normal. This keeps the rate monotonic in stamina (ADR-18).
+- `stamina == 0` counts as **depleted** (8/s), not normal. This keeps the rate monotonic in stamina.
 
 ### 6.2 Depletion (v2.0) — Guard Break has been REMOVED
 
@@ -242,7 +240,7 @@ Implementation: cancel movement by zeroing X/Z each tick, zero positive Y to blo
 - Name booleans as predicates: `canDefend()`, `isDepleted()`, `parryWindowActive()`.
 - Log through `BlockModLogger` with structured prefixes: `[BP] t=<tick> p=<player> <EVENT> key=value ...`
 
-### 7.2 Performance (NFR-01/02)
+### 7.2 Performance
 
 - The per-tick path and the damage path must be allocation-free. Reuse `Vec3` scratch objects; never build strings, lists, or boxed values per tick.
 - No I/O, no registry lookups, and no `Optional` chains inside the damage handler.
@@ -259,17 +257,17 @@ Use `DeferredRegister` for **every** registry entry. Never call `BuiltInRegistri
 - **Every gameplay number lives in `config/blockmod-server.toml`.** Magic numbers in code are a build-blocking defect.
 - Every numeric entry uses `defineInRange`; enums and booleans use whitelists. Invalid values log `ERROR` and fall back to the default — never crash, never use the invalid value.
 - `ModConfigEvent.Reloading` must re-validate and push `ConfigSyncPayload` to all online players.
-- Adding a config key requires updating: `Config.java`, the TOML sample in Spec §13.2, and `tools/balance/calc_guard.py` when it affects a formula.
+- Adding a config key requires updating: `Config.java` and `tools/balance/calc_guard.py` (when it affects a formula). If the change alters a default documented in this file (§6), update this file too.
 
 ### Balance tables
 
-Never hand-edit a numeric table in the Spec or a README. Change the formula or the constant, then run:
+Never hand-edit a numeric table in a README or in this file. Change the formula or the constant, then run:
 
 ```bash
 python tools/balance/calc_guard.py
 ```
 
-and paste the regenerated output. The Spec's tables are **outputs of the formula**, never inputs.
+and paste the regenerated output. Balance tables are **outputs of the formula**, never inputs.
 
 ---
 
@@ -286,9 +284,9 @@ and paste the regenerated output. The Spec's tables are **outputs of the formula
 
 ## 10. Testing rules
 
-- **Unit tests cover pure functions only:** `GuardFormulas`, `EffectiveStrengthResolver`, `DamageClassifier`, `BossTracker`, config validation, and — added in v2.0 — regeneration-branch selection, depletion edge detection, and move-malus mount/remove decisions. Target ≥ 90% line coverage on those classes.
-- Use table-driven tests matching the cases enumerated in Spec §9.2.
-- Manual verification uses the 30-item checklist in Spec §9.4 / MVP plan §8. **Run all 30 before declaring the MVP done.**
+- **Unit tests cover pure functions only:** `GuardFormulas`, `EffectiveStrengthResolver`, `DamageClassifier`, `BossTracker`, config validation, and regeneration-branch selection, depletion edge detection, and move-malus mount/remove decisions. Target ≥ 90% line coverage on those classes.
+- Use table-driven tests covering valid, invalid, and boundary inputs for every pure function.
+- Manual verification before declaring any gameplay milestone done: exercise blocking, depletion, parry (all equipment variants), shield bash, power guard, stun, and stamina sync on `runServer`, in both single-player and dedicated-server scenarios.
 - Every bug fix gets a regression test when the logic is a pure function.
 
 ---
@@ -296,7 +294,7 @@ and paste the regenerated output. The Spec's tables are **outputs of the formula
 ## 11. Error handling
 
 - Wrap the entire damage-interception handler in `try/catch`. On any exception: log `ERROR` with the stack trace and **let the damage through**. A mod bug must never make a player invulnerable or unkillable.
-- Every edge case listed in Spec §8 (E-01..E-31) must have a corresponding branch. When you find a new one, add it to that list.
+- Edge-case handling is mandatory and tracked **in this file**. Every plausible edge case (weird damage sources, respawn, dimension change, login mid-action, player removal, empty/offhand-only equipment, `null` positions, non-finite numbers) must have a corresponding branch. When you find a new one, add it to the list below.
 - Never swallow an exception silently.
 
 ### Specifically tricky cases already known
@@ -314,7 +312,7 @@ and paste the regenerated output. The Spec's tables are **outputs of the formula
   `T-24: add GuardResolver with vanilla shield double-guard`
 - **Branches:** `feat/T-xx-short-description`. `main` only receives working code.
 - **Tags** at each milestone: `v0.1-m0`, `v0.1-m2`, …
-- **Never commit:** `build/`, `run/`, `*.log`, `.idea/`, `*.iml`, local config overrides.
+- **Never commit:** `build/`, `run/`, `*.log`, `.idea/`, `*.iml`, local config overrides, and **anything under `docs/`**.
 - One logical change per commit. Do not mix refactors with behaviour changes.
 
 ---
@@ -322,20 +320,21 @@ and paste the regenerated output. The Spec's tables are **outputs of the formula
 ## 13. Do NOT
 
 1. **Do not use the legacy Capability API.** NeoForge 1.21 uses Attachments.
-2. **Do not add Mixins during MVP.** The design is event-only. If an event genuinely cannot cover a case, record it in `docs/api-verification.md` and raise it before writing a Mixin. **Approved exception (2026-08-30):** `mixin/PlayerCanEatMixin` for design gap D-01/FR-03 — the only permitted mixin; any further mixin needs the same record-and-approve flow.
+2. **Do not add Mixins during MVP.** The design is event-only. If an event genuinely cannot cover a case, document the limitation in §11 of this file and raise it before writing a Mixin. **Approved exception (2026-08-30):** `mixin/PlayerCanEatMixin` — the only permitted mixin; any further mixin needs the same record-and-approve flow.
 3. **Do not put gameplay logic on the client.** The client renders and sends intent; nothing more.
 4. **Do not trust client payloads.** Validate state and rate-limit every C2S message.
 5. **Do not hardcode numbers.** Config or `GuardProfile`, never a literal.
 6. **Do not reintroduce a `broken` field, a Guard Break state, or a depletion stun.** They were removed deliberately in v2.0.
 7. **Do not rely on a `MobEffect` for depletion.** It is derived from stamina precisely so it cannot be cleared.
-8. **Do not apply a movement-speed penalty while depleted.** Removing it is what closes the "exhaust → retreat" loop (ADR-15).
+8. **Do not apply a movement-speed penalty while depleted.** Removing it is what closes the "exhaust → retreat" loop.
 9. **Do not use `setNoAi(true)` to implement stun.**
 10. **Do not allocate in per-tick or damage-handler paths.**
 11. **Do not run depletion side effects every tick.** Edge detection only.
 12. **Do not hand-edit balance tables.** Regenerate them.
 13. **Do not skip `runServer`.** Client-only testing hides authority and sync bugs.
-14. **Do not add a feature that is not in the Spec.** Open a Spec item first.
+14. **Do not add a feature that is not described in this file or already implemented.** Propose it first (ask the maintainer / open an issue) instead of inventing scope.
 15. **Do not mix Chinese and English in identifiers or comments.** Identifiers, log prefixes, and comments are English; user-facing strings go through `I18n` (`zh_cn` first, `en_us` post-MVP).
+16. **Do not reference the `docs/` directory in code, comments, commit messages, or this file.** It is local-only and gitignored.
 
 ---
 
@@ -347,7 +346,7 @@ A task is done only when **all** of the following hold:
 - [ ] Verified on **both** `runClient` and `runServer`
 - [ ] Every acceptance criterion for the task was actually executed, not assumed
 - [ ] New numbers are configurable; no magic numbers
-- [ ] Edge cases from Spec §8 are handled
+- [ ] Known edge cases (§11) are handled and no new unhandled ones were introduced
 - [ ] Unit tests added where the logic is a pure function
 - [ ] No per-tick allocations introduced
 - [ ] Commit references its task ID
@@ -356,12 +355,12 @@ A task is done only when **all** of the following hold:
 
 ## 15. Getting started checklist for a new agent
 
-1. Read this file.
-2. Read `docs/BlockParry-软件规格说明书-v2.0.md` §5 (detailed design) and §7 (open questions).
-3. Check `docs/MVP开发计划-v1.0.md` to find the current task ID.
-4. **If your change touches the damage pipeline, read `docs/api-verification.md` first.** Several NeoForge API assumptions there are load-bearing.
-5. Confirm which open items (`O-xx`) affect your task. Do not silently pick a side — raise it.
+1. Read this file end to end.
+2. Skim the source tree to see how the pieces wire together: start at `BlockMod.java`, then `config/Config.java`, `registry/`, `logic/`, `state/`, and `handler/`.
+3. Run `./gradlew build` and the existing unit tests to confirm a clean baseline before changing anything.
+4. **If your change touches the damage pipeline, read the existing handlers in `handler/` and `logic/` carefully first.** The assumptions in §11 (double-mitigation, re-entrancy, food capture) are load-bearing.
+5. If anything is ambiguous or two rules seem to conflict, ask rather than silently picking a side.
 
 ---
 
-*Keep this file in sync with the Spec. If a rule here and the Spec disagree, update the Spec first, then this file.*
+*This file is self-contained and authoritative. Keep it in sync with the code: if a rule here and the code disagree, fix the code first, then update this file.*

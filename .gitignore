@@ -39,3 +39,4 @@ run/
 repo/
 !**/src/**/repo/
 /docs/
+/.workbuddy/**
