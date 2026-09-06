@@ -1,6 +1,58 @@
 {
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "blockmod:item/iron_great_shield"
-  }
+	"texture_size": [128, 128],
+	"textures": {
+		"0": "blockmod:item/iron_great_shield",
+		"particle": "blockmod:item/iron_great_shield"
+	},
+	"elements": [
+		{
+			"from": [7.5, 5.75, 9.5],
+			"to": [8.5, 10.25, 14],
+			"rotation": {"angle": 0, "axis": "y", "origin": [8.5, 5.75, 9.5]},
+			"faces": {
+				"north": {"uv": [1.75, 4.375, 1.875, 5], "texture": "#0"},
+				"east": {"uv": [0.5, 4.375, 1.125, 5], "texture": "#0"},
+				"south": {"uv": [1.875, 4.375, 2, 5], "texture": "#0"},
+				"west": {"uv": [1.125, 4.375, 1.75, 5], "texture": "#0"},
+				"up": {"uv": [2.125, 5, 2, 4.375], "texture": "#0"},
+				"down": {"uv": [2.25, 4.375, 2.125, 5], "texture": "#0"}
+			}
+		},
+		{
+			"from": [-1, -8.5, 8],
+			"to": [17, 24.5, 9.5],
+			"rotation": {"angle": 0, "axis": "y", "origin": [17, -8.5, 6.5]},
+			"faces": {
+				"north": {"uv": [0, 0, 2.25, 4.125], "texture": "#0"},
+				"east": {"uv": [0, 4.125, 0.25, 8.25], "texture": "#0"},
+				"south": {"uv": [2.25, 0, 4.5, 4.125], "texture": "#0"},
+				"west": {"uv": [0.25, 4.125, 0.5, 8.25], "texture": "#0"},
+				"up": {"uv": [2.75, 4.375, 0.5, 4.125], "texture": "#0"},
+				"down": {"uv": [5, 4.125, 2.75, 4.375], "texture": "#0"}
+			}
+		}
+	],
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [0, -90, 0],
+			"translation": [3.75, -2, 0.75]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [0, -90, 0],
+			"translation": [3.75, -2, 0.75]
+		},
+		"firstperson_righthand": {
+			"translation": [6, -11, 0]
+		},
+		"firstperson_lefthand": {
+			"translation": [6, -11, 0]
+		},
+		"ground": {
+			"translation": [0, 12.75, 0]
+		},
+		"gui": {
+			"rotation": [0, -180, 0],
+			"scale": [0.4, 0.4, 0.4]
+		}
+	}
 }

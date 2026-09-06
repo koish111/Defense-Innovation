@@ -1,6 +1,0 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "blockmod:item/reinforced_iron_shield"
-  }
-}
