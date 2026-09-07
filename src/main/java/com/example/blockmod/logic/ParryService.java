@@ -66,6 +66,13 @@ public final class ParryService {
         long cooldownEnd = now + Config.parryCooldownTicks();
         if (guardState.parryReadyTick() < cooldownEnd) {
             guardState.setParryReadyTick(cooldownEnd);
+            // ADR-07 cooldown visualised as the vanilla item-cooldown sweep, parry-capable
+            // equipment only (designer ruling 2026-09-07) — a medium/great shield never
+            // parries and must not display a parry cooldown.
+            GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
+            if (equipment != null && windowTicks(equipment.profile()) > 0) {
+                player.getCooldowns().addCooldown(equipment.stack().getItem(), Config.parryCooldownTicks());
+            }
         }
     }
 

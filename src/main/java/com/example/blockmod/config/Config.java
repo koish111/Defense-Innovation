@@ -114,6 +114,7 @@ public final class Config {
     // ==================================================================
     private static final ModConfigSpec.ConfigValue<Double> PG_STAMINA_DRAIN_PERCENT;
     private static final ModConfigSpec.ConfigValue<Double> PG_STAMINA_DRAIN_FLAT;
+    private static final ModConfigSpec.ConfigValue<Integer> PG_COOLDOWN_TICKS;
     private static final ModConfigSpec.BooleanValue PG_DISABLE_JUMP;
     private static final ModConfigSpec.BooleanValue PG_SUSPEND_REGEN;
     private static final ModConfigSpec.ConfigValue<String> PG_KEY;
@@ -222,9 +223,10 @@ public final class Config {
         BUILDER.push("power_guard");
         PG_STAMINA_DRAIN_PERCENT = defineDouble("FR-16: power guard drain per second, percentage of max_stamina (follows a dynamic max automatically).", "stamina_drain_percent", 1.0, 0.0, 100.0);
         PG_STAMINA_DRAIN_FLAT = defineDouble("FR-16: power guard drain per second, flat points on top of the percentage. Total = max_stamina x percent + flat (designer ruling 2026-08-30).", "stamina_drain_flat", 1.0, 0.0, 100.0);
+        PG_COOLDOWN_TICKS = defineInt("Designer ruling 2026-09-07: cooldown after power guard ends before it can be re-activated; visualised via the vanilla item-cooldown sweep.", "cooldown_ticks", 60, 0, 1200);
         PG_DISABLE_JUMP = BUILDER.comment("FR-16: jumping is disabled during power guard.").define("disable_jump", true);
         PG_SUSPEND_REGEN = BUILDER.comment("ADR-08: stamina regen is suspended during power guard.").define("suspend_regen", true);
-        PG_KEY = BUILDER.comment("FR-16: key binding name for power guard (client display only).").define("key", "key.keyboard.left.alt", o -> o instanceof String s && !s.isBlank());
+        PG_KEY = BUILDER.comment("FR-16: key binding name for power guard (client display only; the remappable binding itself lives in the vanilla controls screen).").define("key", "key.keyboard.left.ctrl", o -> o instanceof String s && !s.isBlank());
         BUILDER.pop();
 
         BUILDER.comment("Great-shield perks (designer ruling 2026-09-04).").push("greatshield");
@@ -310,6 +312,7 @@ public final class Config {
     public static int bucklerParryWindow() { return BUCKLER_PARRY_WINDOW.get(); }
     public static int stunDuration() { return STUN_DURATION.get(); }
     public static int parryCooldownTicks() { return PARRY_COOLDOWN_TICKS.get(); }
+    public static int powerGuardCooldownTicks() { return PG_COOLDOWN_TICKS.get(); }
     public static int bossParryThreshold() { return BOSS_PARRY_THRESHOLD.get(); }
     public static int bossParryCounterExpire() { return BOSS_PARRY_COUNTER_EXPIRE.get(); }
     public static float deflectSpeedMultiplier() { return DEFLECT_SPEED_MULTIPLIER.get().floatValue(); }
