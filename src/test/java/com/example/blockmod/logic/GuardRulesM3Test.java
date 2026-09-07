@@ -68,11 +68,33 @@ class GuardRulesM3Test {
     private static final int NONE = GuardRules.EQUIP_NONE;
     private static final int PROFILE = GuardRules.EQUIP_PROFILE;
     private static final int SWORD = GuardRules.EQUIP_SWORD;
+    private static final int SHIELD = GuardRules.EQUIP_SHIELD;
 
     @Test
     @DisplayName("resolveEquipment_剑加盾: 主手剑 + 副手中盾 → 副手盾牌（FR-11）")
     void resolveSwordPlusShield() {
         assertEquals(GuardRules.SLOT_OFFHAND, GuardRules.resolveEquipmentSlot(PROFILE, SWORD));
+    }
+
+    @Test
+    @DisplayName("resolveEquipment_标签盾加剑: 副手标签盾（无组件）+ 主手剑 → 副手盾牌（FR-11 优先级最高）")
+    void resolveTagShieldBeatsSword() {
+        assertEquals(GuardRules.SLOT_OFFHAND, GuardRules.resolveEquipmentSlot(SHIELD, SWORD));
+        assertEquals(GuardRules.SLOT_OFFHAND, GuardRules.resolveEquipmentSlot(SHIELD, PROFILE));
+        assertEquals(GuardRules.SLOT_OFFHAND, GuardRules.resolveEquipmentSlot(SHIELD, SHIELD));
+        assertEquals(GuardRules.SLOT_OFFHAND, GuardRules.resolveEquipmentSlot(SHIELD, NONE));
+    }
+
+    @Test
+    @DisplayName("resolveEquipment_主手标签盾: 副手空 + 主手标签盾 → 主手")
+    void resolveMainhandTagShield() {
+        assertEquals(GuardRules.SLOT_MAINHAND, GuardRules.resolveEquipmentSlot(NONE, SHIELD));
+    }
+
+    @Test
+    @DisplayName("resolveEquipment_副手剑加标签盾: 副手剑不格挡 → 主手标签盾")
+    void resolveOffhandSwordPlusTagShield() {
+        assertEquals(GuardRules.SLOT_MAINHAND, GuardRules.resolveEquipmentSlot(SWORD, SHIELD));
     }
 
     @Test

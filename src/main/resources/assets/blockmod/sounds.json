@@ -1,0 +1,54 @@
+{
+	"fortified_guard": {
+		"sounds": [
+			"blockmod:fortified_guard"
+		]
+	},
+	"metal_shield_blocked": {
+		"sounds": [
+			"blockmod:metal_shield_blocked1",
+			"blockmod:metal_shield_blocked2"
+		]
+	},
+	"sword_blocked": {
+		"sounds": [
+			"blockmod:sword_blocked1",
+			"blockmod:sword_blocked2"
+		]
+	},
+	"shield_start_block": {
+		"sounds": [
+			"blockmod:shield_start_block"
+		]
+	},
+	"sword_start_block": {
+		"sounds": [
+			"blockmod:sword_start_block"
+		]
+	},
+	"shield_parry": {
+		"sounds": [
+			"blockmod:shield_parry"
+		]
+	},
+	"sword_parry": {
+		"sounds": [
+			"blockmod:sword_parry"
+		]
+	},
+	"shield_counter": {
+		"sounds": [
+			"blockmod:shield_counter"
+		]
+	},
+	"shield_break": {
+		"sounds": [
+			"blockmod:shield_break"
+		]
+	},
+	"sword_break": {
+		"sounds": [
+			"blockmod:sword_break"
+		]
+	}
+}

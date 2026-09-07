@@ -3,14 +3,14 @@ package com.example.blockmod.logic;
 import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.config.Config;
 import com.example.blockmod.data.GuardProfile;
+import com.example.blockmod.data.ShieldType;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
-import com.example.blockmod.registry.ModDataComponents;
+import com.example.blockmod.registry.ModSounds;
 import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
 
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
 
 /**
  * Stamina regeneration and the v2.0 depletion transition (Spec §5.3, FR-02, FR-04).
@@ -22,7 +22,7 @@ import net.minecraft.world.item.ItemStack;
  * 4. guarding → regen × guard multiplier;
  * 5. otherwise → regen.
  *
- * <p>The {@code depletionEdgeFlipped} helper is the ONLY place {@link GuardStateData#wasDepleted}
+ * <p>The {@code depletionEdgeFlipped} helper is the ONLY place {@link GuardStateData#wasDepleted()}
  * is written, so side effects run exactly once per crossing of zero (E-28: no thrash).
  */
 public final class StaminaService {
@@ -95,10 +95,19 @@ public final class StaminaService {
     public static void refreshDepletedState(ServerPlayer player, GuardStateData guardState, boolean depleted) {
         if (depleted) {
             MovementService.remove(player, guardState);
-            // FR-22 MVP: the depletion cue (shield lowering) reuses the vanilla item break sound
-            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
-                    net.minecraft.sounds.SoundEvents.ITEM_BREAK, player.getSoundSource(), 0.8f, 0.7f);
-            BlockModLogger.info("DEPLETED", "phase", "enter", "player", player.getGameProfile().getName());
+            // Designer ruling 2026-09-06: strengthen the depletion punishment — the crossing
+            // pushes stamina down to at least -depletion_floor_depth (24); a hit that lands
+            // deeper than that keeps its own (deeper) value.
+            float floor = -Config.depletionFloorDepth();
+            StaminaData stamina = player.getData(ModAttachments.STAMINA.get());
+            if (floor < 0f && stamina.stamina() > floor) {
+                stamina.setStamina(floor);
+            }
+            // FR-22/T-40: the depletion cue splits by the equipment held at the crossing
+            // (sword vs shield); empty hands fall back to the shield variant.
+            ModSounds.play(player, depletionCue(player), 0.8f, 0.7f);
+            BlockModLogger.info("DEPLETED", "phase", "enter", "player", player.getGameProfile().getName(),
+                    "stamina", stamina.stamina());
         } else {
             if (guardState.isGuarding()) {
                 GuardProfile profile = resolveGuardProfile(player);
@@ -111,15 +120,23 @@ public final class StaminaService {
     }
 
     /**
-     * M3's GuardEquipmentResolver (T-22) replaces this placeholder; until then the
-     * depletion-exit remount can only re-mount an explicit guard_profile component.
+     * T-40: the depletion cue sound — sword break when a sword is the active
+     * guard equipment, shield break otherwise (including empty hands).
+     */
+    private static net.neoforged.neoforge.registries.DeferredHolder<net.minecraft.sounds.SoundEvent, net.minecraft.sounds.SoundEvent>
+            depletionCue(ServerPlayer player) {
+        GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
+        return equipment != null && equipment.profile().type() == ShieldType.SWORD
+                ? ModSounds.SWORD_BREAK : ModSounds.SHIELD_BREAK;
+    }
+
+    /**
+     * FR-11 unified resolution for the depletion-exit remount: delegates to
+     * {@link GuardEquipmentResolver} so the offhand-priority rules and the
+     * vanilla-shield data map are honoured exactly like every other consumer.
      */
     private static GuardProfile resolveGuardProfile(ServerPlayer player) {
-        ItemStack offhand = player.getOffhandItem();
-        GuardProfile profile = offhand.get(ModDataComponents.GUARD_PROFILE.get());
-        if (profile != null) {
-            return profile;
-        }
-        return player.getMainHandItem().get(ModDataComponents.GUARD_PROFILE.get());
+        GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
+        return equipment != null ? equipment.profile() : null;
     }
 }

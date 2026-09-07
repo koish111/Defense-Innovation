@@ -7,6 +7,7 @@ import com.example.blockmod.config.Config;
 import com.example.blockmod.data.ShieldType;
 import com.example.blockmod.registry.ModAttachments;
 import com.example.blockmod.registry.ModEffects;
+import com.example.blockmod.registry.ModSounds;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
@@ -68,6 +69,16 @@ public final class ShieldBashService {
         guardState.setBashWindupEndTick(-1L);
         guardState.setBashReadyTick(now + Config.bashCooldownTicks()); // ADR-11: counts from resolution
 
+        // ADR-11 cooldown visualised as the vanilla item-cooldown sweep on the bash shield
+        // (designer ruling 2026-09-07). Shield items have no vanilla use side effects here.
+        GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
+        if (equipment != null && equipment.profile().type() == ShieldType.MEDIUM) {
+            player.getCooldowns().addCooldown(equipment.stack().getItem(), Config.bashCooldownTicks());
+        }
+
+        // T-40: the bash release cue plays at resolution whether or not anything was hit.
+        ModSounds.play(player, ModSounds.SHIELD_COUNTER, 0.9f, 1.0f);
+
         int hits = resolveHit(player);
         StaminaData stamina = player.getData(ModAttachments.STAMINA.get());
         float consume = Config.bashConsumeStamina();
@@ -114,8 +125,6 @@ public final class ShieldBashService {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.CRIT,
                     player.getX() + look.x * 1.5, player.getEyeY() - 0.2, player.getZ() + look.z * 1.5,
                     10, 0.3, 0.3, 0.3, 0.1);
-            level.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_CRIT, player.getSoundSource(), 0.9f, 0.8f);
         }
         return hits;
     }

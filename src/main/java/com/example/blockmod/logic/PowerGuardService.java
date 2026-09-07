@@ -5,6 +5,7 @@ import com.example.blockmod.config.Config;
 import com.example.blockmod.data.ShieldType;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
+import com.example.blockmod.registry.ModSounds;
 import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
 
@@ -27,15 +28,21 @@ public final class PowerGuardService {
         GuardStateData guardState = player.getData(ModAttachments.GUARD_STATE.get());
         if (!active) {
             if (guardState.isPowerGuarding()) {
-                guardState.setPowerGuarding(false);
-                SyncThrottler.forceSync(player);
-                BlockModLogger.info("POWER_GUARD", "action", "off", "player", player.getGameProfile().getName(),
-                        "reason", "key released");
+                deactivate(player, guardState, "key released", now);
             }
             return;
         }
         if (guardState.isPowerGuarding()) {
             return;
+        }
+        if (now < guardState.powerGuardReadyTick()) {
+            BlockModLogger.warn("POWER_GUARD", "action", "rejected", "player", player.getGameProfile().getName(),
+                    "reason", "cooldown");
+            return; // designer ruling 2026-09-07: 3s lockout after PG ends
+        }
+        if (!guardState.isGuarding()) {
+            return; // designer ruling 2026-09-07: PG triggers only while the guard holds
+                    // (right-click first, then the PG key). Expected input pattern, stay silent.
         }
         GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
         String reject = validate(player, equipment, guardState);
@@ -45,10 +52,36 @@ public final class PowerGuardService {
             return; // E-11/E-19
         }
         guardState.setPowerGuarding(true);
-        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
-                net.minecraft.sounds.SoundEvents.EXPERIENCE_ORB_PICKUP, player.getSoundSource(), 0.9f, 0.6f);
+        ModSounds.play(player, ModSounds.FORTIFIED_GUARD, 0.9f, 0.6f);
         SyncThrottler.forceSync(player);
         BlockModLogger.info("POWER_GUARD", "action", "on", "player", player.getGameProfile().getName());
+    }
+
+    /**
+     * Disarms the state (guard exit, item switch, depletion paths call this). Anchors the
+     * re-activation cooldown and shows it as the vanilla item-cooldown sweep on the shield
+     * (designer ruling 2026-09-07).
+     */
+    public static void disarm(ServerPlayer player, GuardStateData guardState, long now) {
+        if (guardState.isPowerGuarding()) {
+            deactivate(player, guardState, "guard exit", now);
+        }
+    }
+
+    /** Single funnel for every PG exit: disarm state, anchor cooldown, visualise, sync, log. */
+    private static void deactivate(ServerPlayer player, GuardStateData guardState, String reason, long now) {
+        guardState.setPowerGuarding(false);
+        int cooldown = Config.powerGuardCooldownTicks();
+        if (cooldown > 0) {
+            guardState.setPowerGuardReadyTick(now + cooldown);
+            GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
+            if (equipment != null && equipment.profile().type() == ShieldType.GREAT) {
+                player.getCooldowns().addCooldown(equipment.stack().getItem(), cooldown);
+            }
+        }
+        SyncThrottler.forceSync(player);
+        BlockModLogger.info("POWER_GUARD", "action", "off", "player", player.getGameProfile().getName(),
+                "reason", reason, "cooldownTicks", cooldown);
     }
 
     @Nullable

@@ -7,12 +7,14 @@ import java.util.UUID;
 import com.example.blockmod.BlockMod;
 import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.config.Config;
+import com.example.blockmod.data.ShieldType;
 import com.example.blockmod.logic.GuardEquipmentResolver;
 import com.example.blockmod.logic.GuardEquipmentResolver.GuardEquipment;
 import com.example.blockmod.logic.MovementService;
 import com.example.blockmod.network.GuardInputPayload;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
+import com.example.blockmod.registry.ModSounds;
 import com.example.blockmod.state.GuardStateData;
 
 import net.minecraft.server.MinecraftServer;
@@ -65,11 +67,14 @@ public final class ServerGuardInputHandler {
                         player.getData(ModAttachments.STAMINA.get()).canDefend());
                 // T-34/§5.13: the parry window opens on guard enter (gated by ADR-07 cooldown).
                 com.example.blockmod.logic.ParryService.openWindow(player, guardState, equipment.profile(), now);
+                // T-40: the raise cue splits by equipment class (sword vs shield).
+                ModSounds.play(player, equipment.profile().type() == ShieldType.SWORD
+                        ? ModSounds.SWORD_START_BLOCK : ModSounds.SHIELD_START_BLOCK, 0.8f, 1.0f);
                 BlockModLogger.info("GUARD_INPUT", "action", "enter", "player", player.getGameProfile().getName(),
                         "hand", equipment.hand());
             } else {
                 MovementService.remove(player, guardState);
-                com.example.blockmod.logic.PowerGuardService.disarm(player, guardState); // §5.7: PG ends with the guard
+                com.example.blockmod.logic.PowerGuardService.disarm(player, guardState, now); // §5.7: PG ends with the guard
                 // T-34/ADR-07: the re-entry cooldown anchors to the release moment.
                 com.example.blockmod.logic.ParryService.closeWindowOnRelease(player, guardState, now);
                 BlockModLogger.info("GUARD_INPUT", "action", "exit", "player", player.getGameProfile().getName());

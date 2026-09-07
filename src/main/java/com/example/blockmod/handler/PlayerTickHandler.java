@@ -53,7 +53,7 @@ public final class PlayerTickHandler {
                     Config.pgStaminaDrainPercent(), Config.pgStaminaDrainFlat()) / 20.0f;
             stamina.setStamina(stamina.stamina() - drain);
             if (stamina.stamina() <= 0f) {
-                guardState.setPowerGuarding(false); // FR-16: PG closes itself on depletion
+                com.example.blockmod.logic.PowerGuardService.disarm(player, guardState, now); // FR-16: PG closes itself on depletion
             } else if (Config.pgDisableJump()) {
                 // §5.7: jump clamp — upward velocity is removed each tick while PG holds
                 double y = player.getDeltaMovement().y;
@@ -70,7 +70,7 @@ public final class PlayerTickHandler {
         if (guardState.isGuarding() && player.containerMenu != player.inventoryMenu) {
             guardState.setGuarding(false);
             com.example.blockmod.logic.MovementService.remove(player, guardState);
-            com.example.blockmod.logic.PowerGuardService.disarm(player, guardState); // §5.7: PG ends with the guard
+            com.example.blockmod.logic.PowerGuardService.disarm(player, guardState, now); // §5.7: PG ends with the guard
             SyncThrottler.forceSync(player);
             com.example.blockmod.BlockModLogger.info("GUARD_INPUT", "action", "container_exit",
                     "player", player.getGameProfile().getName());

@@ -13,6 +13,7 @@ import com.example.blockmod.registry.ModDataMaps;
 import com.example.blockmod.registry.ModEffects;
 import com.example.blockmod.registry.ModItems;
 import com.example.blockmod.registry.ModPayloads;
+import com.example.blockmod.registry.ModSounds;
 
 @Mod(BlockMod.MODID)
 public final class BlockMod {
@@ -30,6 +31,7 @@ public final class BlockMod {
         ModAttachments.ATTACHMENTS.register(modEventBus);
         ModEffects.EFFECTS.register(modEventBus);
         ModCreativeTabs.TABS.register(modEventBus);
+        ModSounds.SOUND_EVENTS.register(modEventBus);
         modEventBus.addListener(ModDataMaps::onRegisterDataMapTypes);
         modEventBus.addListener(ModPayloads::onRegisterPayloadHandlers);
     }

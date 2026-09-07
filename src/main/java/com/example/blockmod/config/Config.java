@@ -68,6 +68,7 @@ public final class Config {
     private static final ModConfigSpec.ConfigValue<Double> MIN_COST_PER_GUARD;
     private static final ModConfigSpec.ConfigValue<Double> MAX_COST_PER_GUARD_MULTIPLIER;
     private static final ModConfigSpec.ConfigValue<Double> NEGATIVE_SYNC_CLAMP;
+    private static final ModConfigSpec.ConfigValue<Double> DEPLETION_FLOOR_DEPTH;
 
     // ==================================================================
     // [guard]
@@ -113,6 +114,7 @@ public final class Config {
     // ==================================================================
     private static final ModConfigSpec.ConfigValue<Double> PG_STAMINA_DRAIN_PERCENT;
     private static final ModConfigSpec.ConfigValue<Double> PG_STAMINA_DRAIN_FLAT;
+    private static final ModConfigSpec.ConfigValue<Integer> PG_COOLDOWN_TICKS;
     private static final ModConfigSpec.BooleanValue PG_DISABLE_JUMP;
     private static final ModConfigSpec.BooleanValue PG_SUSPEND_REGEN;
     private static final ModConfigSpec.ConfigValue<String> PG_KEY;
@@ -162,6 +164,11 @@ public final class Config {
     private static final ModConfigSpec.ConfigValue<String> UNKNOWN_SHIELD_DEFAULT;
 
     // ==================================================================
+    // [sound]
+    // ==================================================================
+    private static final ModConfigSpec.ConfigValue<Double> SOUND_PITCH_JITTER;
+
+    // ==================================================================
     // [debug]
     // ==================================================================
     private static final ModConfigSpec.BooleanValue VERBOSE_LOGGING;
@@ -184,6 +191,7 @@ public final class Config {
         MIN_COST_PER_GUARD = defineDouble("ADR-09: lower clamp for a single blocked hit's stamina cost.", "min_cost_per_guard", 0.5, 0.0, 100.0);
         MAX_COST_PER_GUARD_MULTIPLIER = defineDouble("Upper clamp for a single blocked hit's cost, relative to max_stamina.", "max_cost_per_guard_multiplier", 2.0, 0.1, 10.0);
         NEGATIVE_SYNC_CLAMP = defineDouble("O-16: display clamp for the stamina value synced to clients.", "negative_sync_clamp", -40.0, -1000.0, 0.0);
+        DEPLETION_FLOOR_DEPTH = defineDouble("Designer ruling 2026-09-06: crossing into depletion pushes stamina at least this far below zero; a hit that lands deeper keeps its depth. 0 = disabled.", "depletion_floor_depth", 24.0, 0.0, 1000.0);
         BUILDER.pop();
 
         BUILDER.comment("Guard formulas and combat-wide rules.").push("guard");
@@ -225,9 +233,10 @@ public final class Config {
         BUILDER.push("power_guard");
         PG_STAMINA_DRAIN_PERCENT = defineDouble("FR-16: power guard drain per second, percentage of max_stamina (follows a dynamic max automatically).", "stamina_drain_percent", 1.0, 0.0, 100.0);
         PG_STAMINA_DRAIN_FLAT = defineDouble("FR-16: power guard drain per second, flat points on top of the percentage. Total = max_stamina x percent + flat (designer ruling 2026-08-30).", "stamina_drain_flat", 1.0, 0.0, 100.0);
+        PG_COOLDOWN_TICKS = defineInt("Designer ruling 2026-09-07: cooldown after power guard ends before it can be re-activated; visualised via the vanilla item-cooldown sweep.", "cooldown_ticks", 60, 0, 1200);
         PG_DISABLE_JUMP = BUILDER.comment("FR-16: jumping is disabled during power guard.").define("disable_jump", true);
         PG_SUSPEND_REGEN = BUILDER.comment("ADR-08: stamina regen is suspended during power guard.").define("suspend_regen", true);
-        PG_KEY = BUILDER.comment("FR-16: key binding name for power guard (client display only).").define("key", "key.keyboard.left.alt", o -> o instanceof String s && !s.isBlank());
+        PG_KEY = BUILDER.comment("FR-16: key binding name for power guard (client display only; the remappable binding itself lives in the vanilla controls screen).").define("key", "key.keyboard.left.ctrl", o -> o instanceof String s && !s.isBlank());
         BUILDER.pop();
 
         BUILDER.comment("Great-shield perks (designer ruling 2026-09-04).").push("greatshield");
@@ -269,6 +278,10 @@ public final class Config {
         UNKNOWN_SHIELD_DEFAULT = defineWhitelist("FR-27 (post-MVP): classification for third-party shields without a profile.", "unknown_shield_default", "medium", List.of("none", "buckler", "medium", "great"));
         BUILDER.pop();
 
+        BUILDER.push("sound");
+        SOUND_PITCH_JITTER = defineDouble("T-40: random pitch jitter (±) applied to every mod sound cue so repeats are not monotone.", "pitch_jitter", 0.05, 0.0, 0.5);
+        BUILDER.pop();
+
         BUILDER.push("debug");
         VERBOSE_LOGGING = BUILDER.comment("Emit verbose [BP] diagnostics for guard/parry resolution.").define("verbose_logging", false);
         LOG_EVENT_BUFFER_SIZE = defineInt("Size of the in-memory recent-events ring used by /blockparry debug.", "log_event_buffer_size", 100, 10, 10000);
@@ -287,6 +300,7 @@ public final class Config {
     public static float regenDelaySeconds() { return REGEN_DELAY.get().floatValue(); }
     public static float guardRegenMultiplier() { return GUARD_REGEN_MULTIPLIER.get().floatValue(); }
     public static float depletedRegenRate() { return DEPLETED_REGEN_RATE.get().floatValue(); }
+    public static float depletionFloorDepth() { return DEPLETION_FLOOR_DEPTH.get().floatValue(); }
     public static boolean depletedRemoveMoveMalus() { return DEPLETED_REMOVE_MOVE_MALUS.get(); }
     public static float depletedDamageReduction() { return DEPLETED_DAMAGE_REDUCTION.get().floatValue(); }
     public static int depletionHysteresisTicks() { return DEPLETION_HYSTERESIS_TICKS.get(); }
@@ -318,6 +332,7 @@ public final class Config {
     public static int bucklerParryWindow() { return BUCKLER_PARRY_WINDOW.get(); }
     public static int stunDuration() { return STUN_DURATION.get(); }
     public static int parryCooldownTicks() { return PARRY_COOLDOWN_TICKS.get(); }
+    public static int powerGuardCooldownTicks() { return PG_COOLDOWN_TICKS.get(); }
     public static int bossParryThreshold() { return BOSS_PARRY_THRESHOLD.get(); }
     public static int bossParryCounterExpire() { return BOSS_PARRY_COUNTER_EXPIRE.get(); }
     public static float deflectSpeedMultiplier() { return DEFLECT_SPEED_MULTIPLIER.get().floatValue(); }
@@ -374,6 +389,9 @@ public final class Config {
     // [compat]
     public static List<? extends String> compatDisabledByModids() { return COMPAT_DISABLED_BY_MODIDS.get(); }
     public static String unknownShieldDefault() { return UNKNOWN_SHIELD_DEFAULT.get(); }
+
+    // [sound]
+    public static float soundPitchJitter() { return SOUND_PITCH_JITTER.get().floatValue(); }
 
     // [debug]
     public static boolean verboseLogging() { return VERBOSE_LOGGING.get(); }
