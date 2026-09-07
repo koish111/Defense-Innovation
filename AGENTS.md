@@ -232,7 +232,9 @@ Implementation (v2, mixin-driven freeze): force the `isImmobile()` branch of `Li
 
 `StunHandler` (events) keeps only what mixins cannot express: the per-tick `stopUsingItem()` abort of in-progress item use (interruption without the release effect — `releaseUsingItem()` would fire the arrow), the sprint reset, and the server-authoritative cancellations (damage from a stunned attacker, attacks, item use, interactions) that a hacked client cannot bypass.
 
-**Do not** touch position or velocity in tick events (it cancels knockback and leaves animations playing — the removed v1 approach); **do not use `setNoAi(true)`** (no effect on players) and **do not** implement it in `MobEffect#applyEffectTick` (movement resolves after effect ticks). The boot-time M2Verify self-check asserts the freeze server-side (zero drift, pinned heading, knockback pass-through, cancelled attack).
+**Stun disables defense (FR-04 gate, 2026-09-07):** a stunned defender can neither block nor parry — the stun folds into the same `canDefend` boolean as depletion (`GuardResolver` step 6). Guard entry is rejected while stunned, an existing guard (and its PG state, parry window, move malus) is force-dropped every tick it coexists with the stun (`ServerGuardInputHandler.dropGuard`), and new PG/bash activations are refused. Never re-derive this from a separate stun flag — one gate, two causes (depleted or stunned).
+
+**Do not** touch position or velocity in tick events (it cancels knockback and leaves animations playing — the removed v1 approach); **do not use `setNoAi(true)`** (no effect on players) and **do not** implement it in `MobEffect#applyEffectTick` (movement resolves after effect ticks). The boot-time M2Verify self-check asserts the freeze and the defense gate server-side (zero drift, pinned heading, knockback pass-through, cancelled attack, guarding-stunned probe taking damage).
 
 ---
 
