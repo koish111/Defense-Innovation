@@ -94,6 +94,9 @@ public final class PowerGuardService {
         if (stamina.isDepleted()) {
             return "depleted (needs stamina > 0)"; // E-19 / FR-16
         }
+        if (MixinHooks.isStunned(player)) {
+            return "stunned"; // FR-05: a stunned player cannot act
+        }
         return null;
     }
 

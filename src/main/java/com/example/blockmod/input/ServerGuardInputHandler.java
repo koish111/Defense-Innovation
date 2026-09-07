@@ -10,6 +10,7 @@ import com.example.blockmod.config.Config;
 import com.example.blockmod.data.ShieldType;
 import com.example.blockmod.logic.GuardEquipmentResolver;
 import com.example.blockmod.logic.GuardEquipmentResolver.GuardEquipment;
+import com.example.blockmod.logic.MixinHooks;
 import com.example.blockmod.logic.MovementService;
 import com.example.blockmod.network.GuardInputPayload;
 import com.example.blockmod.network.SyncThrottler;
@@ -54,6 +55,11 @@ public final class ServerGuardInputHandler {
             BlockModLogger.warn("GUARD_INPUT", "action", "rejected", "player", player.getGameProfile().getName(),
                     "reason", "no guardable equipment");
             return; // E-11: no shield/sword — ignore the request
+        }
+        if (payload.guarding() && MixinHooks.isStunned(player)) {
+            BlockModLogger.warn("GUARD_INPUT", "action", "rejected", "player", player.getGameProfile().getName(),
+                    "reason", "stunned");
+            return; // FR-05: a stunned player can neither raise nor hold a guard
         }
 
         GuardStateData guardState = player.getData(ModAttachments.GUARD_STATE.get());
@@ -114,13 +120,27 @@ public final class ServerGuardInputHandler {
             Long last = LAST_INPUT_TICK.get(player.getUUID());
             long now = player.level().getGameTime();
             if (last == null || now - last > Config.guardTimeoutTicks()) {
-                guardState.setGuarding(false);
-                MovementService.remove(player, guardState);
-                SyncThrottler.forceSync(player);
+                dropGuard(player, guardState, now);
                 BlockModLogger.warn("GUARD_INPUT", "action", "timeout_drop", "player",
+                        player.getGameProfile().getName());
+            } else if (MixinHooks.isStunned(player)) {
+                // FR-05: the stun force-lowers the guard — no block, no parry window,
+                // no PG. Runs every tick the stun + guard pair holds, so the guard can
+                // never survive a stun regardless of what the client keeps sending.
+                dropGuard(player, guardState, now);
+                BlockModLogger.warn("GUARD_INPUT", "action", "stun_drop", "player",
                         player.getGameProfile().getName());
             }
         }
+    }
+
+    /** Full authoritative guard exit: state + malus + PG + parry window + sync. */
+    private static void dropGuard(ServerPlayer player, GuardStateData guardState, long now) {
+        guardState.setGuarding(false);
+        MovementService.remove(player, guardState);
+        com.example.blockmod.logic.PowerGuardService.disarm(player, guardState, now); // §5.7: PG ends with the guard
+        com.example.blockmod.logic.ParryService.closeWindowOnRelease(player, guardState, now); // ADR-07 cooldown anchor
+        SyncThrottler.forceSync(player);
     }
 
     @SubscribeEvent

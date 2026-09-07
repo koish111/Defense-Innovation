@@ -177,8 +177,11 @@ public final class GuardRules {
     public static final int RESULT_PARRIED = 4;
     public static final int RESULT_GUARDED = 5;
 
-    /** §5.4.2 arbitration: conditions pre-computed by the caller, decided here. */
-    public static int resolveGuard(boolean hasProfile, boolean guarding, boolean staminaPositive,
+    /** §5.4.2 arbitration: conditions pre-computed by the caller, decided here.
+     *  {@code canDefend} is the FR-04 defense gate — stamina positive AND not stunned
+     *  (FR-05: the stun shares the depletion gate, so a stunned defender can neither
+     *  block nor parry, and the damage resolves normally). */
+    public static int resolveGuard(boolean hasProfile, boolean guarding, boolean canDefend,
             boolean frontal, int damageClassOrdinal, boolean inParryWindow) {
         // step 1-3 (server player / creative exemption / re-entrancy) are handled by the caller
         if (!hasProfile) {
@@ -187,8 +190,8 @@ public final class GuardRules {
         if (!guarding) {
             return RESULT_NOT_GUARDED;                       // step 5 (C2)
         }
-        if (!staminaPositive) {
-            return RESULT_DEPLETED_PASS;                     // step 6 (C3)
+        if (!canDefend) {
+            return RESULT_DEPLETED_PASS;                     // step 6 (C3) — depleted or stunned
         }
         if (!frontal) {
             return RESULT_WRONG_ANGLE;                       // step 7 (C4)
