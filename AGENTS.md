@@ -228,7 +228,11 @@ All three cooldowns (parry re-entry, shield bash, power guard) are surfaced to t
 
 `blockmod:stun`, 20 ticks. Its **only** source is a successful parry — it is never a punishment for the defender.
 
-Implementation: cancel movement by zeroing X/Z each tick, zero positive Y to block jumping, cancel `AttackEntityEvent` and item-use events, and call `stopUsingItem()`. **Do not use `setNoAi(true)`** (no effect on players) and **do not** implement it in `MobEffect#applyEffectTick` (movement resolves after effect ticks).
+Implementation (v2, mixin-driven freeze): force the `isImmobile()` branch of `LivingEntity.aiStep` true while stunned (`LivingEntityStunMixin` — zeroes move/jump impulses *and* skips `serverAiStep()`: no goals, no brain, no look control, no pathfinding), and cancel `LivingEntity#swing`. Client-side only: pin the camera (`MouseHandlerStunMixin`), suppress the swing packet (`LocalPlayerStunMixin`), zero the raw input booleans (vehicle paddle steering bypasses the impulses), and cancel click-to-act (`ClientStunInputHandler`). `travel()` keeps running behind the freeze, so external forces — knockback, explosions, gravity — still move the body.
+
+`StunHandler` (events) keeps only what mixins cannot express: the per-tick `stopUsingItem()` abort of in-progress item use (interruption without the release effect — `releaseUsingItem()` would fire the arrow), the sprint reset, and the server-authoritative cancellations (damage from a stunned attacker, attacks, item use, interactions) that a hacked client cannot bypass.
+
+**Do not** touch position or velocity in tick events (it cancels knockback and leaves animations playing — the removed v1 approach); **do not use `setNoAi(true)`** (no effect on players) and **do not** implement it in `MobEffect#applyEffectTick` (movement resolves after effect ticks). The boot-time M2Verify self-check asserts the freeze server-side (zero drift, pinned heading, knockback pass-through, cancelled attack).
 
 ---
 
@@ -288,7 +292,7 @@ and paste the regenerated output. Balance tables are **outputs of the formula**,
 
 - **Unit tests cover pure functions only:** `GuardFormulas`, `EffectiveStrengthResolver`, `DamageClassifier`, `BossTracker`, config validation, and regeneration-branch selection, depletion edge detection, and move-malus mount/remove decisions. Target ≥ 90% line coverage on those classes.
 - Use table-driven tests covering valid, invalid, and boundary inputs for every pure function.
-- Manual verification before declaring any gameplay milestone done: exercise blocking, depletion, parry (all equipment variants), shield bash, power guard, stun, and stamina sync on `runServer`, in both single-player and dedicated-server scenarios.
+- Manual verification before declaring any gameplay milestone done: exercise blocking, depletion, parry (all equipment variants), shield bash, power guard, stun, and stamina sync on `runServer`, in both single-player and dedicated-server scenarios. The boot-time M2Verify log doubles as the automated acceptance record for stamina branches and the stun freeze.
 - Every bug fix gets a regression test when the logic is a pure function.
 
 ---
