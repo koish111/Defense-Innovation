@@ -87,7 +87,8 @@ public final class GuardRules {
     /** Slot classes fed into {@link #resolveEquipmentSlot}. */
     public static final int EQUIP_NONE = 0;
     public static final int EQUIP_PROFILE = 1;  // guard_profile component or data map
-    public static final int EQUIP_SWORD = 2;    // #minecraft:swords or #blockmod:guardable without a profile
+    public static final int EQUIP_SWORD = 2;    // #minecraft:swords (main-hand-only: vanilla cannot raise an offhand sword)
+    public static final int EQUIP_SHIELD = 3;   // #blockmod:guardable shield-family without a profile (Spec §5.12 step 3)
 
     /** Slot a resolved equipment came from. */
     public static final int SLOT_NONE = 0;
@@ -95,16 +96,21 @@ public final class GuardRules {
     public static final int SLOT_MAINHAND = 2;
 
     /**
-     * §5.12 priority: an offhand shield/profile always wins (FR-11, ADR-10: no dual
-     * shields), then a mainhand profile, then a mainhand sword/guardable (step 4
-     * covers the MAIN hand only — vanilla cannot raise an offhand sword, so an
-     * offhand sword guards nothing).
+     * §5.12 / FR-11 priority — the offhand shield wins over everything (FR-11,
+     * ADR-10: no dual shields):
+     * <ol>
+     *   <li>offhand profile or shield-family guardable → offhand;</li>
+     *   <li>mainhand profile or shield-family guardable → mainhand;</li>
+     *   <li>mainhand sword → mainhand.</li>
+     * </ol>
+     * An offhand {@code EQUIP_SWORD} still guards nothing: vanilla cannot raise an
+     * offhand sword (the {@code EQUIP_SWORD} class is main-hand-only by design).
      */
     public static int resolveEquipmentSlot(int offhandClass, int mainhandClass) {
-        if (offhandClass == EQUIP_PROFILE) {
+        if (offhandClass == EQUIP_PROFILE || offhandClass == EQUIP_SHIELD) {
             return SLOT_OFFHAND;
         }
-        if (mainhandClass == EQUIP_PROFILE) {
+        if (mainhandClass == EQUIP_PROFILE || mainhandClass == EQUIP_SHIELD) {
             return SLOT_MAINHAND;
         }
         if (mainhandClass == EQUIP_SWORD) {
