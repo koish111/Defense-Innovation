@@ -125,7 +125,7 @@ Use the NeoForge **Attachment API** (`NeoForgeRegistries.ATTACHMENT_TYPES`), nev
 | Attachment | Serialized | Contents |
 |:---|:---|:---|
 | `blockmod:stamina` | **Yes** | `stamina`, `lastEventTick` |
-| `blockmod:guard_state` | No | `guarding`, `parryWindowEndTick`, `parryReadyTick`, `powerGuarding`, `bashWindupEndTick`, `bashReadyTick`, `activeMoveMalusUuid`, `wasDepleted` |
+| `blockmod:guard_state` | No | `guarding`, `parryWindowEndTick`, `parryReadyTick`, `powerGuarding`, `powerGuardReadyTick`, `bashWindupEndTick`, `bashReadyTick`, `activeMoveMalusUuid`, `wasDepleted` |
 
 Item statistics (guard strength, shield type, parry window, move malus, power-guard bonus) live in the **`blockmod:guard_profile` data component** on the `ItemStack`, so datapacks and third-party items can override them without code.
 
@@ -215,12 +215,14 @@ A hit is blocked only if **all** of these hold: target is a `ServerPlayer`, a `G
 
 | | Shield Bash | Power Guard |
 |:---|:---|:---|
-| Trigger | Left click while guarding | Hold the PG key (default **Left Alt**) while guarding |
+| Trigger | Left click while guarding | Press the PG key (default **Left Ctrl**, ruling 2026-09-07) **while guarding** — the guard must already be active when the key is pressed |
 | Cost | 8.0 damage, 4.0 blocks knockback | `max_stamina × 5%` = 2.0/s |
-| Timing | 5-tick windup, 20-tick cooldown **counted from resolution** | Ends on key release, right-click release, or `stamina <= 0` |
+| Timing | 5-tick windup, 20-tick cooldown **counted from resolution** | Ends on key release, right-click release, or `stamina <= 0`; then a 60-tick (`power_guard.cooldown_ticks`, ruling 2026-09-07) re-activation lockout |
 | Extra | keeps guarding | disables jump, suspends regeneration |
 
 Power Guard **requires `stamina > 0` to activate**. It is not available while depleted.
+
+All three cooldowns (parry re-entry, shield bash, power guard) are surfaced to the player as the **vanilla item-cooldown sweep** on the guard item (`player.getCooldowns()`). These overlays are visual only — the guard state machine never consults vanilla `ItemCooldowns`.
 
 ### 6.8 Stun
 

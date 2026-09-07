@@ -69,6 +69,13 @@ public final class ShieldBashService {
         guardState.setBashWindupEndTick(-1L);
         guardState.setBashReadyTick(now + Config.bashCooldownTicks()); // ADR-11: counts from resolution
 
+        // ADR-11 cooldown visualised as the vanilla item-cooldown sweep on the bash shield
+        // (designer ruling 2026-09-07). Shield items have no vanilla use side effects here.
+        GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
+        if (equipment != null && equipment.profile().type() == ShieldType.MEDIUM) {
+            player.getCooldowns().addCooldown(equipment.stack().getItem(), Config.bashCooldownTicks());
+        }
+
         // T-40: the bash release cue plays at resolution whether or not anything was hit.
         ModSounds.play(player, ModSounds.SHIELD_COUNTER, 0.9f, 1.0f);
 

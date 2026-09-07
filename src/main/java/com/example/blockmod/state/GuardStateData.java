@@ -15,6 +15,7 @@ public final class GuardStateData {
     private boolean parryUsed;
     private long parryReadyTick = -1L;
     private boolean powerGuarding;
+    private long powerGuardReadyTick = -1L;
     private long bashWindupEndTick = -1L;
     private long bashReadyTick = -1L;
     private ResourceLocation activeMoveMalusId;
@@ -68,6 +69,14 @@ public final class GuardStateData {
         this.powerGuarding = powerGuarding;
     }
 
+    public long powerGuardReadyTick() {
+        return powerGuardReadyTick;
+    }
+
+    public void setPowerGuardReadyTick(long powerGuardReadyTick) {
+        this.powerGuardReadyTick = powerGuardReadyTick;
+    }
+
     public long bashWindupEndTick() {
         return bashWindupEndTick;
     }
@@ -111,6 +120,7 @@ public final class GuardStateData {
         return "GuardStateData[guarding=" + guarding + ", hand=" + guardHand
                 + ", parryWindowEnd=" + parryWindowEndTick + ", parryUsed=" + parryUsed
                 + ", parryReady=" + parryReadyTick + ", powerGuarding=" + powerGuarding
+                + ", powerGuardReady=" + powerGuardReadyTick
                 + ", bashWindupEnd=" + bashWindupEndTick + ", bashReady=" + bashReadyTick
                 + ", malusId=" + activeMoveMalusId + ", wasDepleted=" + wasDepleted + "]";
     }
