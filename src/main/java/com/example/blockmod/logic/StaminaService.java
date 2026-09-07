@@ -6,13 +6,11 @@ import com.example.blockmod.data.GuardProfile;
 import com.example.blockmod.data.ShieldType;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
-import com.example.blockmod.registry.ModDataComponents;
 import com.example.blockmod.registry.ModSounds;
 import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
 
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
 
 /**
  * Stamina regeneration and the v2.0 depletion transition (Spec §5.3, FR-02, FR-04).
@@ -133,15 +131,12 @@ public final class StaminaService {
     }
 
     /**
-     * M3's GuardEquipmentResolver (T-22) replaces this placeholder; until then the
-     * depletion-exit remount can only re-mount an explicit guard_profile component.
+     * FR-11 unified resolution for the depletion-exit remount: delegates to
+     * {@link GuardEquipmentResolver} so the offhand-priority rules and the
+     * vanilla-shield data map are honoured exactly like every other consumer.
      */
     private static GuardProfile resolveGuardProfile(ServerPlayer player) {
-        ItemStack offhand = player.getOffhandItem();
-        GuardProfile profile = offhand.get(ModDataComponents.GUARD_PROFILE.get());
-        if (profile != null) {
-            return profile;
-        }
-        return player.getMainHandItem().get(ModDataComponents.GUARD_PROFILE.get());
+        GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
+        return equipment != null ? equipment.profile() : null;
     }
 }

@@ -28,8 +28,10 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *       tags are synced to the client, so {@code #blockmod:guardable} +
  *       {@code #minecraft:swords} cover the roster, the vanilla shield and
  *       datapack extensions without reading the (unsynced) data map;</li>
- *   <li>R-04: with a sword in hand, right-clicking a usable block stays vanilla
- *       (no guard intent) per {@code sword_guard_requires_no_block_target}.</li>
+ *   <li>R-04: while a sword is the active guard equipment (no guardable offhand),
+ *       right-clicking a usable block stays vanilla (no guard intent) per
+ *       {@code sword_guard_requires_no_block_target}; an offhand shield overrides
+ *       it and always guards (FR-11).</li>
  * </ul>
  */
 @EventBusSubscriber(modid = BlockMod.MODID, value = Dist.CLIENT)
@@ -70,13 +72,14 @@ public final class ClientGuardInputHandler {
         }
 
         boolean wantSend = desireGuard && plausiblyGuardable(player);
-        if (wantSend && desireGuard && Config.swordGuardRequiresNoBlockTarget()) {
-            boolean mainhandSword = player.getMainHandItem().is(ItemTags.SWORDS);
-            boolean mainhandGuardableOnly = player.getMainHandItem().is(ItemTags.SWORDS);
-            if (mainhandSword && lookingAtBlock(minecraft)) {
-                wantSend = false; // R-04: block interaction wins over sword guarding
-            }
-            // mainhandGuardableOnly kept trivial for clarity; shields always guard.
+        // R-04 applies only while the SWORD is the would-be active guard equipment
+        // (FR-11: an offhand shield has top priority — the sword's block-target rule
+        // must never override the shield's guard, so a guardable offhand skips it).
+        if (wantSend && desireGuard && Config.swordGuardRequiresNoBlockTarget()
+                && player.getMainHandItem().is(ItemTags.SWORDS)
+                && !player.getOffhandItem().is(ModTags.ITEMS_GUARDABLE)
+                && lookingAtBlock(minecraft)) {
+            wantSend = false; // R-04: block interaction wins over sword guarding
         }
 
         boolean stateChanged = wantSend != sentState;
