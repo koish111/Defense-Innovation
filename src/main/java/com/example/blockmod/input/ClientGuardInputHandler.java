@@ -3,6 +3,7 @@ package com.example.blockmod.input;
 import com.example.blockmod.BlockMod;
 import com.example.blockmod.config.Config;
 import com.example.blockmod.network.GuardInputPayload;
+import com.example.blockmod.registry.ModEffects;
 import com.example.blockmod.registry.ModTags;
 
 import net.minecraft.client.Minecraft;
@@ -71,7 +72,10 @@ public final class ClientGuardInputHandler {
             return;
         }
 
-        boolean wantSend = desireGuard && plausiblyGuardable(player);
+        // FR-05: while stunned, guard intent is suppressed client-side — the server
+        // re-validates and force-drops anyway (authoritative), this only avoids the
+        // rejected-packet churn and the enter/exit flicker in the same tick window.
+        boolean wantSend = desireGuard && plausiblyGuardable(player) && !player.hasEffect(ModEffects.STUN);
         // R-04 applies only while the SWORD is the would-be active guard equipment
         // (FR-11: an offhand shield has top priority — the sword's block-target rule
         // must never override the shield's guard, so a guardable offhand skips it).

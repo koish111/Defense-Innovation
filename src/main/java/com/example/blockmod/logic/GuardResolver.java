@@ -64,7 +64,7 @@ public final class GuardResolver {
                 return; // step 3 (E-10)
             }
             GuardContext ctx = buildContext(player, event.getSource(), event.getAmount());
-            int result = GuardRules.resolveGuard(ctx.hasProfile(), ctx.guarding(), ctx.staminaPositive(),
+            int result = GuardRules.resolveGuard(ctx.hasProfile(), ctx.guarding(), ctx.canDefend(),
                     ctx.frontal(), ctx.damageClass().ordinal(), ctx.inParryWindow());
             if (Config.verboseLogging() && result != GuardRules.RESULT_GUARDED) {
                 BlockModLogger.info("GUARD", "result", result, "source", event.getSource().getMsgId(),
@@ -257,8 +257,10 @@ public final class GuardResolver {
             return guardState.isGuarding();
         }
 
-        boolean staminaPositive() {
-            return stamina.canDefend(); // C3: pre-deduction value (FR-04 acceptance 6)
+        boolean canDefend() {
+            // C3: pre-deduction value (FR-04 acceptance 6), widened by FR-05 — a stunned
+            // defender shares the depletion gate: no block, no parry, damage resolves.
+            return stamina.canDefend() && !MixinHooks.isStunned(player);
         }
 
         boolean inParryWindow() {

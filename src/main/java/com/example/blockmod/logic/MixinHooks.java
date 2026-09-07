@@ -4,10 +4,14 @@ package com.example.blockmod.logic;
 // classes from a defined mixin package (IllegalClassLoadError), only @Mixin types may live there.
 
 import com.example.blockmod.config.Config;
+import com.example.blockmod.registry.ModEffects;
+
+import net.minecraft.world.entity.LivingEntity;
 
 /**
- * Bridges mixin-injected vanilla gates to mod configuration. Kept in the mixin
- * package next to its only callers.
+ * Bridges mixin-injected vanilla gates to mod state and configuration. Lives
+ * OUTSIDE the mixin package (the Mixin subsystem forbids loading regular classes
+ * from a defined mixin package) and is invoked from the mixins' handler methods.
  */
 public final class MixinHooks {
     private MixinHooks() {}
@@ -25,5 +29,16 @@ public final class MixinHooks {
         } catch (RuntimeException configNotLoaded) {
             return true;
         }
+    }
+
+    /**
+     * FR-05: true while the entity carries {@code blockmod:stun}. The stun
+     * mixins (aiStep isImmobile gate, swing cancels, camera freeze) read the
+     * effect directly instead of going through events, so the freeze is
+     * frame-accurate and works for any living entity, client and server alike.
+     * Null-tolerant: the MouseHandler call site may fire with no player yet.
+     */
+    public static boolean isStunned(LivingEntity entity) {
+        return entity != null && entity.hasEffect(ModEffects.STUN);
     }
 }
