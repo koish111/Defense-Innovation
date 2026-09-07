@@ -60,8 +60,10 @@ public final class M2Verify {
         // keep stamina negative the whole window -> -5 + 2.0 = -3.0 (PG would hold -5).
         r = drive(player, -5.0f, false, true, 0L, 5, -3.0f);
         log(r);
-        // 强力防御持续消耗: drain = max × 5% / 20 ticks = 0.1/tick -> 20 - 2 = 18 (§5.3.1 step 1)
-        r = drive(player, 20.0f, true, true, 0L, 20, 18.0f);
+        // 强力防御持续消耗: FR-16 (2026-08-30 ruling) drain = max × 1% + 1.0 = 1.4/s
+        // (stamina_drain_percent=1.0, stamina_drain_flat=1.0, max=40) -> 20 ticks
+        // deduct 1.4 -> 18.6 (§5.3.1 step 1); powerGuarding also zeroes the regen branch.
+        r = drive(player, 20.0f, true, true, 0L, 20, 18.6f);
         log(r);
         // 上限钳制
         r = drive(player, 39.9f, false, false, 0L, 40, 40.0f);
