@@ -1,15 +1,9 @@
 package com.example.blockmod.logic;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
 import com.example.blockmod.BlockMod;
-import com.example.blockmod.registry.ModEffects;
 
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.Vec3;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -20,65 +14,53 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 /**
- * FR-05 / Spec §5.8: enforces the six-way lockdown while a living entity carries
- * {@code blockmod:stun}. Stun is only ever applied by a successful parry's counter;
- * it is never a punishment for the defender.
+ * FR-05 / Spec §5.8: server-authoritative enforcement of the lockdown while a
+ * living entity carries {@code blockmod:stun}. Stun is only ever applied by a
+ * successful parry's counter; it is never a punishment for the defender.
  *
- * <p>Movement is resolved after effect ticks, which is why the lockdown runs in
- * tick-event handlers instead of {@code MobEffect#applyEffectTick}, and why
- * {@code setNoAi(true)} is not used (no effect on players).
+ * <p><b>Freeze model (v2).</b> The behaviour freeze itself lives in mixins:
+ * {@code LivingEntityStunMixin} forces the {@code isImmobile()} branch of
+ * {@code aiStep} — movement impulses zeroed, {@code serverAiStep} skipped (no
+ * goals, no brain, no look control, no pathfinding) — and cancels
+ * {@code LivingEntity#swing}; client-side only, {@code MouseHandlerStunMixin}
+ * pins the camera and {@code LocalPlayerStunMixin} suppresses the swing packet.
+ * {@code travel()} keeps running, so a frozen body still obeys external forces:
+ * knockback, explosions, gravity. This handler deliberately does <b>not</b>
+ * touch position or velocity — the earlier snapshot/zeroing approach cancelled
+ * knockback and left AI animations running, which is exactly what v2 removes.
  *
- * <p><b>Mobs</b> freeze horizontally via a position snapshot: the Pre hook records
- * X/Z, the Post hook restores them and zeroes the horizontal velocity. The tick
- * itself keeps running — effect timers decay, invulnerability decays, and the AI
- * keeps targeting (no aggro loss) — the mob simply cannot go anywhere. Jump arcs
- * and falling (vertical motion) stay intact. A stunned entity's own attacks are
- * suppressed in {@link #onStunnedAttacker}.
+ * <p>What remains here is what events express better than mixins: the per-tick
+ * abort of in-progress item use ({@code stopUsingItem} interrupts a drawn bow
+ * or a bite of food <i>without</i> the release effect — {@code releaseUsingItem}
+ * would fire the arrow), the sprint reset, and the server-authoritative
+ * cancellations. Client-side freezes are advisory (vanilla trust model: a
+ * hacked client can send anything); the damage and interaction refusals below
+ * are not bypassable. {@code setNoAi(true)} is deliberately not used — it does
+ * nothing for players and would wipe the mob's AI state, losing aggro.
  */
 @EventBusSubscriber(modid = BlockMod.MODID)
 public final class StunHandler {
-    /** Horizontal snapshot for the current tick, per stunned non-player entity. */
-    private static final Map<UUID, double[]> PREV_HORIZONTAL = new HashMap<>();
 
     private static boolean isStunned(LivingEntity entity) {
-        return entity.hasEffect(ModEffects.STUN);
+        return MixinHooks.isStunned(entity);
     }
 
+    /**
+     * Per-tick cleanup for frozen entities, both sides: abort any in-progress
+     * item use (a bow draw freezes mid-raise and never fires) and drop the
+     * sprint state so the FOV kick and sprint sounds stop immediately.
+     */
     @SubscribeEvent
     static void onEntityTickPre(EntityTickEvent.Pre event) {
         if (!(event.getEntity() instanceof LivingEntity entity) || !isStunned(entity)) {
             return;
         }
+        if (entity.isUsingItem()) {
+            entity.stopUsingItem();
+        }
         if (entity instanceof Player player) {
-            // Player lockdown rows: zero residual drift (the real suppression lives in
-            // ClientStunInputHandler on the client side), no jump impulse, no item use.
-            double y = player.getDeltaMovement().y;
-            player.setDeltaMovement(0.0, Math.min(y, 0.0), 0.0);
             player.setSprinting(false);
-            if (player.isUsingItem()) {
-                player.stopUsingItem();
-            }
-            return;
         }
-        // Non-player entity: snapshot X/Z so the Post hook can undo the AI's move.
-        PREV_HORIZONTAL.put(entity.getUUID(), new double[]{entity.getX(), entity.getZ()});
-    }
-
-    @SubscribeEvent
-    static void onEntityTickPost(EntityTickEvent.Post event) {
-        if (!(event.getEntity() instanceof LivingEntity entity) || entity instanceof Player) {
-            return;
-        }
-        double[] prev = PREV_HORIZONTAL.remove(entity.getUUID());
-        if (prev == null) {
-            return;
-        }
-        if (isStunned(entity)) {
-            entity.setPos(prev[0], entity.getY(), prev[1]); // horizontal freeze, vertical physics intact
-            Vec3 dm = entity.getDeltaMovement();
-            entity.setDeltaMovement(0.0, dm.y, 0.0);
-        }
-        // stun ended: the entry is simply dropped — the entity resumes normal behaviour
     }
 
     /** FR-05 lockdown row 3 for mobs: a stunned entity's own attacks deal no damage. */
