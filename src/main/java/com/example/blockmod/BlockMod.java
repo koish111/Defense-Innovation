@@ -12,7 +12,6 @@ import com.example.blockmod.registry.ModDataComponents;
 import com.example.blockmod.registry.ModDataMaps;
 import com.example.blockmod.registry.ModEffects;
 import com.example.blockmod.registry.ModItems;
-import com.example.blockmod.registry.ModKeyMappings;
 import com.example.blockmod.registry.ModPayloads;
 import com.example.blockmod.registry.ModSounds;
 

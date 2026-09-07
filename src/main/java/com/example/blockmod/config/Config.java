@@ -125,6 +125,16 @@ public final class Config {
     private static final ModConfigSpec.ConfigValue<Double> GREAT_BLOCK_KNOCKBACK_BLOCKS;
     private static final ModConfigSpec.ConfigValue<Double> GREAT_PG_BLOCK_KNOCKBACK_BLOCKS;
     private static final ModConfigSpec.ConfigValue<Double> GREAT_PG_KNOCKBACK_RANGE_BLOCKS;
+    private static final ModConfigSpec.DoubleValue GREAT_DAMAGE_REFERENCE;
+    private static final ModConfigSpec.DoubleValue GREAT_SHOVE_LIFT;
+    private static final ModConfigSpec.DoubleValue GREAT_GROUND_FRICTION;
+    private static final ModConfigSpec.DoubleValue GREAT_AIR_DRAG;
+    private static final ModConfigSpec.DoubleValue GREAT_VERTICAL_DRAG;
+    private static final ModConfigSpec.IntValue GREAT_AIR_RESPONSE_TICKS;
+    private static final ModConfigSpec.IntValue GREAT_GROUND_RESPONSE_TICKS;
+    private static final ModConfigSpec.DoubleValue GREAT_INPUT_DAMPING;
+    private static final ModConfigSpec.DoubleValue GREAT_AIR_INPUT_SPEED;
+    private static final ModConfigSpec.DoubleValue GREAT_COUNTER_ACCELERATION_CAP;
 
     // ==================================================================
     // [durability]
@@ -230,9 +240,19 @@ public final class Config {
         BUILDER.pop();
 
         BUILDER.comment("Great-shield perks (designer ruling 2026-09-04).").push("greatshield");
-        GREAT_BLOCK_KNOCKBACK_BLOCKS = defineDouble("Knockback (blocks) applied to the attacker on a successful great-shield block. Ranged attackers are exempt. 0 disables.", "block_knockback_blocks", 1.0, 0.0, 20.0);
-        GREAT_PG_BLOCK_KNOCKBACK_BLOCKS = defineDouble("Knockback (blocks) applied to every frontal entity on a successful block while power guard holds. Replaces block_knockback_blocks. 0 disables.", "power_guard_block_knockback_blocks", 2.0, 0.0, 20.0);
+        GREAT_BLOCK_KNOCKBACK_BLOCKS = defineDouble("Reference displacement (blocks at damage_reference) applied to the attacker on a successful great-shield block. Ranged attackers are exempt. 0 disables.", "block_knockback_blocks", 1.0, 0.0, 20.0);
+        GREAT_PG_BLOCK_KNOCKBACK_BLOCKS = defineDouble("Reference displacement (blocks at damage_reference) applied to every frontal entity on a successful block while power guard holds. Replaces block_knockback_blocks. 0 disables.", "power_guard_block_knockback_blocks", 2.0, 0.0, 20.0);
         GREAT_PG_KNOCKBACK_RANGE_BLOCKS = defineDouble("Reach (blocks) of the power-guard frontal knockback arc.", "power_guard_knockback_range_blocks", 3.0, 1.0, 10.0);
+        GREAT_DAMAGE_REFERENCE = BUILDER.comment("Incoming damage giving the configured reference shove distance; greater damage smoothly approaches twice that distance.").defineInRange("damage_reference", 5.0, 0.01, 1000.0);
+        GREAT_SHOVE_LIFT = BUILDER.comment("Grounded vertical speed floor in blocks/tick. Never added while airborne; independent of damage.").defineInRange("shove_lift", 0.12, 0.0, 0.2);
+        GREAT_GROUND_FRICTION = BUILDER.comment("Reference ground friction for displacement calibration; vanilla ordinary blocks use 0.6.").defineInRange("shove_ground_friction", 0.6, 0.01, 0.99);
+        GREAT_AIR_DRAG = BUILDER.comment("Horizontal velocity retention for displacement calibration; vanilla uses 0.91.").defineInRange("shove_air_drag", 0.91, 0.01, 0.99);
+        GREAT_VERTICAL_DRAG = BUILDER.comment("Vertical velocity retention for displacement calibration; vanilla uses 0.98.").defineInRange("shove_vertical_drag", 0.98, 0.01, 0.99);
+        GREAT_AIR_RESPONSE_TICKS = BUILDER.comment("Airborne shove displacement calibration window in ticks. Y is preserved; landing or AI movement may shorten displacement.").defineInRange("shove_air_response_ticks", 5, 1, 40);
+        GREAT_GROUND_RESPONSE_TICKS = BUILDER.comment("Grounded shove must reach its calibration distance within this many ticks under estimated inward movement input.").defineInRange("shove_ground_response_ticks", 8, 1, 40);
+        GREAT_INPUT_DAMPING = BUILDER.comment("Vanilla movement input damping used when estimating pursuing mob acceleration.").defineInRange("shove_input_damping", 0.98, 0.0, 1.0);
+        GREAT_AIR_INPUT_SPEED = BUILDER.comment("Reference airborne movement acceleration per unit input for pursuing mobs.").defineInRange("shove_air_input_speed", 0.02, 0.0, 1.0);
+        GREAT_COUNTER_ACCELERATION_CAP = BUILDER.comment("Maximum estimated inward ground acceleration to compensate; bounds unusual modded mob speeds.").defineInRange("shove_counter_acceleration_cap", 0.5, 0.0, 2.0);
         BUILDER.pop();
 
         BUILDER.push("durability");
@@ -340,6 +360,16 @@ public final class Config {
     public static float greatshieldBlockKnockbackBlocks() { return GREAT_BLOCK_KNOCKBACK_BLOCKS.get().floatValue(); }
     public static float greatshieldPgBlockKnockbackBlocks() { return GREAT_PG_BLOCK_KNOCKBACK_BLOCKS.get().floatValue(); }
     public static float greatshieldPgKnockbackRangeBlocks() { return GREAT_PG_KNOCKBACK_RANGE_BLOCKS.get().floatValue(); }
+    public static double greatshieldDamageReference() { return GREAT_DAMAGE_REFERENCE.get(); }
+    public static double greatshieldShoveLift() { return GREAT_SHOVE_LIFT.get(); }
+    public static double greatshieldGroundFriction() { return GREAT_GROUND_FRICTION.get(); }
+    public static double greatshieldAirDrag() { return GREAT_AIR_DRAG.get(); }
+    public static double greatshieldVerticalDrag() { return GREAT_VERTICAL_DRAG.get(); }
+    public static int greatshieldAirResponseTicks() { return GREAT_AIR_RESPONSE_TICKS.get(); }
+    public static int greatshieldGroundResponseTicks() { return GREAT_GROUND_RESPONSE_TICKS.get(); }
+    public static double greatshieldInputDamping() { return GREAT_INPUT_DAMPING.get(); }
+    public static double greatshieldAirInputSpeed() { return GREAT_AIR_INPUT_SPEED.get(); }
+    public static double greatshieldCounterAccelerationCap() { return GREAT_COUNTER_ACCELERATION_CAP.get(); }
 
     // [durability]
     public static int minDamageForDurabilityLoss() { return MIN_DAMAGE_FOR_DURABILITY_LOSS.get(); }
@@ -380,7 +410,7 @@ public final class Config {
         boolean changed = false;
         for (RangeRule rule : RANGE_RULES) {
             double current = rule.current().getAsDouble();
-            if (current < rule.min() || current > rule.max()) {
+            if (!Double.isFinite(current) || current < rule.min() || current > rule.max()) {
                 BlockModLogger.error("CONFIG", "rule", "range", "key", rule.key(), "value", current,
                         "range", rule.min() + ".." + rule.max(), "action", "fallback to default " + rule.def());
                 rule.reset().accept(rule.def());
