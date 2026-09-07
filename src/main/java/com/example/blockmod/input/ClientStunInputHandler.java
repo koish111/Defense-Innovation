@@ -42,6 +42,13 @@ public final class ClientStunInputHandler {
         input.forwardImpulse = 0.0F;
         input.leftImpulse = 0.0F;
         input.jumping = false;
+        // Raw key booleans: LocalPlayer.rideTick feeds these straight into the
+        // vehicle (boat paddle input), bypassing the aiStep impulses — zeroing
+        // the impulses alone would leave a stunned rider steering.
+        input.up = false;
+        input.down = false;
+        input.left = false;
+        input.right = false;
     }
 
     /**
