@@ -4,9 +4,13 @@
   "package": "com.example.blockmod.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "PlayerCanEatMixin"
+    "PlayerCanEatMixin",
+    "LivingEntityStunMixin"
   ],
-  "client": [],
+  "client": [
+    "LocalPlayerStunMixin",
+    "MouseHandlerStunMixin"
+  ],
   "server": [],
   "injectors": {
     "defaultRequire": 1
