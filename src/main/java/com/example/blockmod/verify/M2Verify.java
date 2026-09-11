@@ -26,6 +26,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.util.FakePlayer;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 /**
@@ -99,6 +101,12 @@ public final class M2Verify {
         BlockModLogger.info("M2VERIFY", "note", "=== stun defense gate (FR-05) ===");
         stunDefenseCases(level, new GuardProbe(level,
                 new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b3"), "M2GuardProbe")));
+        BlockModLogger.info("M2VERIFY", "note", "=== creative bash resolution ===");
+        creativeBashCase(level, new GuardProbe(level,
+                new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b4"), "M2BashProbe")));
+        BlockModLogger.info("M2VERIFY", "note", "=== guard interaction lockout (FR-24) ===");
+        guardInteractionCases(level, new GuardProbe(level,
+                new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b5"), "M2InteractProbe")));
 
         BlockModLogger.info("M2VERIFY", "note", "=== complete ===");
     }
@@ -156,6 +164,77 @@ public final class M2Verify {
                 String.format("landed=%s hp=%.1f", stunnedLanded, victim.getHealth())));
         zombie.discard();
         victim.discard();
+    }
+
+    /**
+     * 2026-09-11: the FR-26 creative exemption used to skip the whole tick
+     * pipeline, so a creative player's armed bash windup NEVER resolved (bash
+     * worked in survival only). The combat state machines must run under the
+     * exemption — this arms a bash on a CREATIVE probe and drives
+     * {@link PlayerTickHandler#tick} through a full arm → resolve cycle.
+     */
+    private static void creativeBashCase(ServerLevel level, GuardProbe probe) {
+        BlockPos spawn = level.getSharedSpawnPos();
+        double x = spawn.getX() - 2.5, z = spawn.getZ() - 2.5;
+        double y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) x, (int) z);
+        probe.moveTo(x, y, z, 0.0f, 0.0f);
+        probe.setCreative(true);
+        probe.getInventory().offhand.set(0, new ItemStack(Items.SHIELD)); // data map → medium profile
+        GuardStateData g = probe.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
+        StaminaData s = probe.getData(com.example.blockmod.registry.ModAttachments.STAMINA.get());
+        s.setStamina(Config.maxStamina());
+        g.setGuarding(true);
+        g.setPowerGuarding(false);
+
+        long now = level.getGameTime();
+        com.example.blockmod.logic.ShieldBashService.handleTrigger(probe, now); // arms the windup
+        boolean armed = g.bashWindupEndTick() >= 0;
+        g.setBashWindupEndTick(now); // simulate the windup ticks having elapsed
+        PlayerTickHandler.tick(probe); // must resolve under the FR-26 exemption
+        log(new Result("bash 创造: 前摇正常结算",
+                armed && g.bashWindupEndTick() < 0 && g.bashReadyTick() > now,
+                "armed→解除+冷却",
+                String.format("armed=%s windup=%d ready=%d", armed, g.bashWindupEndTick(), g.bashReadyTick())));
+
+        g.setGuarding(false);
+        g.setBashReadyTick(-1L);
+        probe.getInventory().offhand.set(0, ItemStack.EMPTY);
+        probe.setCreative(false);
+    }
+
+    /**
+     * 2026-09-11 ruling (guard interaction lockout): a raised guard blocks
+     * every vanilla interaction — server-authoritative cancellation asserted
+     * by posting the real event types the vanilla pipelines fire
+     * (Player.attack via {@code CommonHooks.onPlayerAttackTarget},
+     * ServerPlayerGameMode via {@code CommonHooks.onItemRightClick}). Guard
+     * down → the same events pass.
+     */
+    private static void guardInteractionCases(ServerLevel level, GuardProbe probe) {
+        BlockPos spawn = level.getSharedSpawnPos();
+        double x = spawn.getX() - 2.5, z = spawn.getZ() + 0.5;
+        double y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) x, (int) z);
+        probe.moveTo(x, y, z, 0.0f, 0.0f);
+        Zombie zombie = EntityType.ZOMBIE.create(level);
+        zombie.moveTo(x + 1.0, y, z, 0.0f, 0.0f);
+        GuardStateData g = probe.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
+        g.setGuarding(true);
+        g.setPowerGuarding(false);
+
+        var bus = net.neoforged.neoforge.common.NeoForge.EVENT_BUS;
+        boolean attackBlocked = bus.post(new AttackEntityEvent(probe, zombie)).isCanceled();
+        boolean useBlocked = bus.post(new PlayerInteractEvent.RightClickItem(probe,
+                net.minecraft.world.InteractionHand.MAIN_HAND)).isCanceled();
+        log(new Result("防御禁交互: 举盾时攻击/使用被取消", attackBlocked && useBlocked, "均取消",
+                String.format("attack=%s use=%s", attackBlocked, useBlocked)));
+
+        g.setGuarding(false);
+        boolean attackFree = !bus.post(new AttackEntityEvent(probe, zombie)).isCanceled();
+        boolean useFree = !bus.post(new PlayerInteractEvent.RightClickItem(probe,
+                net.minecraft.world.InteractionHand.MAIN_HAND)).isCanceled();
+        log(new Result("防御禁交互: 收盾后恢复", attackFree && useFree, "均放行",
+                String.format("attack=%s use=%s", attackFree, useFree)));
+        zombie.discard();
     }
 
     /**
@@ -268,6 +347,9 @@ public final class M2Verify {
      * hurt pipeline run so the {@code GuardResolver} verdict is observable.
      */
     private static final class GuardProbe extends FakePlayer {
+        /** Forces the FR-26 creative branch in PlayerTickHandler without touching gameMode. */
+        private boolean creative;
+
         private GuardProbe(ServerLevel level, GameProfile profile) {
             super(level, profile);
             // FakePlayer.tick() is a no-op, so the ServerPlayer constructor default
@@ -280,6 +362,15 @@ public final class M2Verify {
             } catch (ReflectiveOperationException fieldRenamed) {
                 // a future mapping change surfaces as loudly-failing harness cases
             }
+        }
+
+        void setCreative(boolean creative) {
+            this.creative = creative;
+        }
+
+        @Override
+        public boolean isCreative() {
+            return creative || super.isCreative();
         }
 
         @Override
