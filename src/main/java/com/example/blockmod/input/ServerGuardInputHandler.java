@@ -23,7 +23,9 @@ import net.minecraft.server.level.ServerPlayer;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
@@ -88,6 +90,65 @@ public final class ServerGuardInputHandler {
         }
         LAST_INPUT_TICK.put(player.getUUID(), now);
         SyncThrottler.forceSync(player); // guard enter/exit always syncs immediately (FR-23)
+    }
+
+    /**
+     * 2026-09-11 ruling (guard interaction lockout), server-authoritative
+     * backstop: a raised guard blocks EVERY vanilla interaction — attack, dig
+     * (start and continue), block use, item use, entity interact. The client
+     * suppresses the intent already (ClientGuardInputHandler); these
+     * cancellations close hacked clients. All six events fire on the server
+     * side via NeoForge patches (Player.attack, ServerPlayerGameMode,
+     * ServerGamePacketListenerImpl). The guard input itself rides custom
+     * payloads and raw mouse events, so nothing of this mod is affected; E-07
+     * (container exit) degrades to a fallback because containers can no longer
+     * be opened while guarding.
+     */
+    @SubscribeEvent
+    static void onGuardAttackEntity(AttackEntityEvent event) {
+        if (isGuarding(event.getEntity())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    static void onGuardLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
+        if (isGuarding(event.getEntity())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    static void onGuardRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (isGuarding(event.getEntity())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    static void onGuardRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (isGuarding(event.getEntity())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    static void onGuardEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        if (isGuarding(event.getEntity())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    static void onGuardEntityInteractSpecific(PlayerInteractEvent.EntityInteractSpecific event) {
+        if (isGuarding(event.getEntity())) {
+            event.setCanceled(true);
+        }
+    }
+
+    private static boolean isGuarding(net.minecraft.world.entity.player.Player player) {
+        return player instanceof ServerPlayer serverPlayer
+                && serverPlayer.getData(ModAttachments.GUARD_STATE.get()).isGuarding();
     }
 
     /** E-12: token bucket — one second windows, {@code c2s_rate_limit_per_second} tokens each. */
