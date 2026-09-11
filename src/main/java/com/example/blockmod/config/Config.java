@@ -295,6 +295,9 @@ public final class Config {
     private static final ModConfigSpec.DoubleValue BUCKLER_ANIMATION_FORWARD;
     private static final ModConfigSpec.DoubleValue BUCKLER_ANIMATION_LIFT;
     private static final ModConfigSpec.DoubleValue BUCKLER_ANIMATION_PITCH;
+    private static final ModConfigSpec.DoubleValue BASH_ANIMATION_FORWARD;
+    private static final ModConfigSpec.DoubleValue BASH_ANIMATION_LIFT;
+    private static final ModConfigSpec.DoubleValue BASH_ANIMATION_PITCH;
     public static final ModConfigSpec CLIENT_SPEC;
 
     static {
@@ -309,6 +312,15 @@ public final class Config {
         BUCKLER_ANIMATION_PITCH = clientBuilder.comment("Maximum upward tilt in degrees.")
                 .defineInRange("pitch_degrees", 15.0, 0.0, 90.0);
         clientBuilder.pop();
+        // Bash push duration follows the server windup carried by BashWindupPayload.
+        clientBuilder.comment("First-person medium-shield bash push animation (visual only).").push("shield_bash_animation");
+        BASH_ANIMATION_FORWARD = clientBuilder.comment("Maximum forward thrust in render units.")
+                .defineInRange("forward_thrust", 0.5, 0.0, 2.0);
+        BASH_ANIMATION_LIFT = clientBuilder.comment("Maximum upward lift in render units.")
+                .defineInRange("upward_lift", 0.08, 0.0, 1.0);
+        BASH_ANIMATION_PITCH = clientBuilder.comment("Maximum upward tilt in degrees.")
+                .defineInRange("pitch_degrees", 0.0, 0.0, 90.0);
+        clientBuilder.pop();
         CLIENT_SPEC = clientBuilder.build();
     }
 
@@ -317,6 +329,11 @@ public final class Config {
     public static float bucklerAnimationForward() { return BUCKLER_ANIMATION_FORWARD.get().floatValue(); }
     public static float bucklerAnimationLift() { return BUCKLER_ANIMATION_LIFT.get().floatValue(); }
     public static float bucklerAnimationPitch() { return BUCKLER_ANIMATION_PITCH.get().floatValue(); }
+
+    // [shield_bash_animation] (client)
+    public static float bashAnimationForward() { return BASH_ANIMATION_FORWARD.get().floatValue(); }
+    public static float bashAnimationLift() { return BASH_ANIMATION_LIFT.get().floatValue(); }
+    public static float bashAnimationPitch() { return BASH_ANIMATION_PITCH.get().floatValue(); }
 
     // ==================================================================
     // accessors — the only way gameplay code reads numbers

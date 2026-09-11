@@ -24,6 +24,10 @@ public final class ModPayloads {
                 (payload, context) -> ClientGuardState.acceptStaminaSync(payload));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
                 (payload, context) -> ClientGuardState.acceptConfigSync(payload));
+        registrar.playToClient(com.example.blockmod.network.BashWindupPayload.TYPE,
+                com.example.blockmod.network.BashWindupPayload.STREAM_CODEC,
+                (payload, context) -> com.example.blockmod.client.ShieldBashAnimation
+                        .acceptWindup(payload.durationTicks()));
         registrar.playToServer(GuardInputPayload.TYPE, GuardInputPayload.STREAM_CODEC,
                 (payload, context) -> ServerGuardInputHandler.handle(
                         (net.minecraft.server.level.ServerPlayer) context.player(), payload));
