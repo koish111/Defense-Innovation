@@ -314,6 +314,8 @@ and paste the regenerated output. Balance tables are **outputs of the formula**,
 - **Food → stamina:** capture `foodLevel` in `LivingEntityUseItemEvent.Start` and evaluate it in `.Finish`. Reading `foodLevel` in `Finish` is wrong — the food's nutrition has already been applied.
 - **Vanilla shield double-mitigation:** also handle `LivingShieldBlockEvent` and call `setBlocked(false)` + `setShieldDamage(0)`, or the vanilla path will reduce damage and consume durability a second time.
 - **Re-entrancy:** guard the damage handler with a per-player re-entrancy set so a cancelled event cannot re-enter the same judgement.
+- **Buckler raise animation:** animate once on a server-confirmed guard entry with a parry window, never on heartbeats. Clear the visual timer on guard exit, depletion, stun, equipment replacement, respawn, disconnect, or level change. In NeoForge 1.21.1, `RenderHandEvent` shares its matrix across both hands: scope the transform with push/pop and render the affected hand through `renderArmWithItem` to avoid moving the other hand. Visual settings live in `blockmod-client.toml` and never alter the server's parry window.
+- **Client lifecycle events:** subscribe separately to `ClientPlayerNetworkEvent.LoggingIn`, `.LoggingOut`, and `.Clone`. Registering their abstract base class is rejected by the NeoForge event bus during mod loading.
 
 ---
 

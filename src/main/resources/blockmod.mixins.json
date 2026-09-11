@@ -9,7 +9,8 @@
   ],
   "client": [
     "LocalPlayerStunMixin",
-    "MouseHandlerStunMixin"
+    "MouseHandlerStunMixin",
+    "ItemInHandRendererAccessor"
   ],
   "server": [],
   "injectors": {

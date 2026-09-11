@@ -29,6 +29,7 @@ public final class ClientGuardState {
     private static int parryRemainTicks;
 
     public static void acceptStaminaSync(StaminaSyncPayload payload) {
+        BucklerParryAnimation.acceptStaminaSync(payload);
         if (Float.compare(targetStamina, payload.stamina()) != 0
                 || Float.compare(maxStamina, payload.max()) != 0) {
             unchangedFullTicks = 0;

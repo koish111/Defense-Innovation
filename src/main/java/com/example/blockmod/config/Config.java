@@ -290,6 +290,34 @@ public final class Config {
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 
+    // Client-only presentation settings; these never change the server's parry window.
+    private static final ModConfigSpec.IntValue BUCKLER_ANIMATION_TICKS;
+    private static final ModConfigSpec.DoubleValue BUCKLER_ANIMATION_FORWARD;
+    private static final ModConfigSpec.DoubleValue BUCKLER_ANIMATION_LIFT;
+    private static final ModConfigSpec.DoubleValue BUCKLER_ANIMATION_PITCH;
+    public static final ModConfigSpec CLIENT_SPEC;
+
+    static {
+        var clientBuilder = new ModConfigSpec.Builder();
+        clientBuilder.comment("First-person buckler raise animation (visual only).").push("buckler_animation");
+        BUCKLER_ANIMATION_TICKS = clientBuilder.comment("Animation duration in ticks. 0 disables the animation.")
+                .defineInRange("duration_ticks", 8, 0, 40);
+        BUCKLER_ANIMATION_FORWARD = clientBuilder.comment("Maximum forward thrust in render units.")
+                .defineInRange("forward_thrust", 0.65, 0.0, 2.0);
+        BUCKLER_ANIMATION_LIFT = clientBuilder.comment("Maximum upward lift in render units.")
+                .defineInRange("upward_lift", 0.4, 0.0, 1.0);
+        BUCKLER_ANIMATION_PITCH = clientBuilder.comment("Maximum upward tilt in degrees.")
+                .defineInRange("pitch_degrees", 15.0, 0.0, 90.0);
+        clientBuilder.pop();
+        CLIENT_SPEC = clientBuilder.build();
+    }
+
+    // [buckler_animation] (client)
+    public static int bucklerAnimationTicks() { return BUCKLER_ANIMATION_TICKS.get(); }
+    public static float bucklerAnimationForward() { return BUCKLER_ANIMATION_FORWARD.get().floatValue(); }
+    public static float bucklerAnimationLift() { return BUCKLER_ANIMATION_LIFT.get().floatValue(); }
+    public static float bucklerAnimationPitch() { return BUCKLER_ANIMATION_PITCH.get().floatValue(); }
+
     // ==================================================================
     // accessors — the only way gameplay code reads numbers
     // ==================================================================
@@ -403,6 +431,7 @@ public final class Config {
 
     public static void register(ModContainer container) {
         container.registerConfig(ModConfig.Type.SERVER, SPEC);
+        container.registerConfig(ModConfig.Type.CLIENT, CLIENT_SPEC);
     }
 
     /** Checks every range rule and cross-field rule; violations are logged and reset to their default. */
