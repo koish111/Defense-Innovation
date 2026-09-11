@@ -9,6 +9,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Tag keys owned by the mod (Spec §5.12 / §13.1.2). JSON contents live under
@@ -34,6 +35,11 @@ public final class ModTags {
     // entity type tags
     public static final TagKey<EntityType<?>> BOSSES = TagKey.create(Registries.ENTITY_TYPE,
             ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "bosses"));
+
+    /** True when the stack is one of the three shield families (the first-person guard pose applies to these). */
+    public static boolean isShieldItem(ItemStack stack) {
+        return stack.is(ITEMS_BUCKLERS) || stack.is(ITEMS_MEDIUM_SHIELDS) || stack.is(ITEMS_GREAT_SHIELDS);
+    }
 
     private static TagKey<Item> itemTag(String path) {
         return ItemTags.create(ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, path));

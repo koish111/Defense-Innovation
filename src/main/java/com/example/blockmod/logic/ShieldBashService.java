@@ -57,6 +57,10 @@ public final class ShieldBashService {
             return; // FR-05: stunned players cannot act
         }
         guardState.setBashWindupEndTick(now + Config.bashWindupTicks());
+        // client push animation cue: one payload per confirmed attempt, carrying the
+        // authoritative windup length so the visual spans exactly the server window
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,
+                new com.example.blockmod.network.BashWindupPayload(Config.bashWindupTicks()));
         BlockModLogger.info("BASH", "action", "windup", "player", player.getGameProfile().getName(),
                 "ends", guardState.bashWindupEndTick());
     }
