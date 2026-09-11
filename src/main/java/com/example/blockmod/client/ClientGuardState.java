@@ -30,6 +30,7 @@ public final class ClientGuardState {
 
     public static void acceptStaminaSync(StaminaSyncPayload payload) {
         BucklerParryAnimation.acceptStaminaSync(payload);
+        ShieldGuardPose.acceptStaminaSync(payload);
         if (Float.compare(targetStamina, payload.stamina()) != 0
                 || Float.compare(maxStamina, payload.max()) != 0) {
             unchangedFullTicks = 0;

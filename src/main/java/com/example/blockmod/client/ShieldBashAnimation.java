@@ -5,6 +5,7 @@ import com.example.blockmod.config.Config;
 import com.example.blockmod.registry.ModTags;
 
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -17,9 +18,10 @@ import net.neoforged.neoforge.client.event.RenderHandEvent;
  * server sends {@code BashWindupPayload} carrying its windup duration when it
  * arms the windup, so the push spans exactly the authoritative window.
  * Rejected attempts (cooldown, stamina, stun, non-medium) send nothing and
- * play nothing. The medium shield's guard pose itself stays vanilla, and the
- * great shield (which cannot bash) is never animated — the render path filters
- * on the medium-shield tag.
+ * play nothing. The push renders <strong>on top of the vanilla blocking
+ * pose</strong> (see {@link GuardArmTransforms}) and settles back onto the
+ * steady {@link ShieldGuardPose} with no pop. The great shield (which cannot
+ * bash) is never animated — the render path filters on the medium-shield tag.
  *
  * <p>State hygiene mirrors {@link BucklerParryAnimation}: reset on login,
  * logout, and player clone.
@@ -59,15 +61,15 @@ public final class ShieldBashAnimation {
         remainingTicks = 0;
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGH)
     static void onRenderHand(RenderHandEvent event) {
         if (remainingTicks <= 0 || durationTicks <= 0) {
             return;
         }
         float partialTick = Math.clamp(event.getPartialTick(), 0.0f, 1.0f);
         float progress = Math.clamp((durationTicks - remainingTicks + partialTick) / durationTicks, 0.0f, 1.0f);
-        float amplitude = (float) Math.sin(Math.PI * progress); // thrust, then pull back
-        GuardArmTransforms.renderWithTransform(event, ModTags.ITEMS_MEDIUM_SHIELDS,
+        float amplitude = (float) Math.sin(Math.PI * progress); // thrust, then pull back onto the blocking pose
+        GuardArmTransforms.renderGuardPose(event, ModTags.ITEMS_MEDIUM_SHIELDS,
                 Config.bashAnimationLift(), Config.bashAnimationForward(),
                 Config.bashAnimationPitch(), amplitude);
     }
