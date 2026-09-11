@@ -16,10 +16,12 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
  * Server-side per-tick stamina driver (Spec §5.3.1, order is normative):
- * 0. creative/spectator exemption → 1. power guard drain → 2. parry window
- * expiry → (3. shield bash tick, M5) → 4. regen → 5. depletion edge side
- * effects → 6. throttled sync. Depletion is judged after deductions, so the
- * hit that crosses zero is still blocked (FR-04 acceptance 6, resolved in M3).
+ * 0. creative/spectator exemption (stamina economy only — combat state machines
+ * in 2/2.5/3 still run) → 1. power guard drain → 2. parry window expiry
+ * → 2.5 container-exit guard drop → (3. shield bash tick, M5) → 4. regen
+ * → 5. depletion edge side effects → 6. throttled sync. Depletion is judged
+ * after deductions, so the hit that crosses zero is still blocked (FR-04
+ * acceptance 6, resolved in M3).
  */
 @EventBusSubscriber(modid = com.example.blockmod.BlockMod.MODID)
 public final class PlayerTickHandler {
@@ -36,12 +38,16 @@ public final class PlayerTickHandler {
         GuardStateData guardState = player.getData(ModAttachments.GUARD_STATE.get());
         long now = player.level().getGameTime();
 
-        // 0. creative / spectator exemption (FR-26)
+        // 0. creative / spectator exemption (FR-26) — stamina ECONOMY only. The
+        // combat state machines (parry expiry, container exit, bash resolution)
+        // must still run: skipping them left a creative player's armed bash
+        // windup unresolved forever (2026-09-11 bug report).
         if (!Config.affectCreative() && (player.isCreative() || player.isSpectator())) {
             if (stamina.stamina() != Config.maxStamina()) {
                 stamina.setStamina(Config.maxStamina());
                 SyncThrottler.forceSync(player);
             }
+            tickCombatState(player, guardState, now);
             return;
         }
 
@@ -61,6 +67,27 @@ public final class PlayerTickHandler {
             }
         }
 
+        tickCombatState(player, guardState, now);
+
+        // 4. regeneration (FR-02 three-branch selection)
+        StaminaService.applyRegenTick(player, stamina, guardState, now);
+
+        // 5. depletion edge side effects (exactly once per zero crossing, ADR-15)
+        if (StaminaService.depletionEdgeFlipped(guardState, stamina.stamina())) {
+            StaminaService.refreshDepletedState(player, guardState, guardState.wasDepleted());
+            SyncThrottler.forceSync(player);
+        }
+
+        // 6. throttled sync (FR-23)
+        SyncThrottler.maybeSync(player, now);
+    }
+
+    /**
+     * Steps 2 / 2.5 / 3 of the normative order — the combat state machines
+     * (parry window expiry, container-exit guard drop, shield bash resolution).
+     * Deliberately outside the FR-26 stamina exemption: they are not economy.
+     */
+    private static void tickCombatState(ServerPlayer player, GuardStateData guardState, long now) {
         // 2. parry window expiry
         if (guardState.parryWindowEndTick() >= 0 && now >= guardState.parryWindowEndTick()) {
             guardState.setParryWindowEndTick(-1L);
@@ -78,18 +105,6 @@ public final class PlayerTickHandler {
 
         // 3. shield bash windup/cooldown resolution (FR-15 / Spec §5.6)
         com.example.blockmod.logic.ShieldBashService.tick(player, guardState, now);
-
-        // 4. regeneration (FR-02 three-branch selection)
-        StaminaService.applyRegenTick(player, stamina, guardState, now);
-
-        // 5. depletion edge side effects (exactly once per zero crossing, ADR-15)
-        if (StaminaService.depletionEdgeFlipped(guardState, stamina.stamina())) {
-            StaminaService.refreshDepletedState(player, guardState, guardState.wasDepleted());
-            SyncThrottler.forceSync(player);
-        }
-
-        // 6. throttled sync (FR-23)
-        SyncThrottler.maybeSync(player, now);
     }
 
     private PlayerTickHandler() {}

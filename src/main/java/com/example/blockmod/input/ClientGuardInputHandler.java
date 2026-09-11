@@ -33,6 +33,10 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *       right-clicking a usable block stays vanilla (no guard intent) per
  *       {@code sword_guard_requires_no_block_target}; an offhand shield overrides
  *       it and always guards (FR-11).</li>
+ *   <li>2026-09-11 ruling (guard interaction lockout): while the guard intent
+ *       is live, ALL vanilla interactions (attack / dig / use / interact) and
+ *       their swing animations are suppressed client-side; the server
+ *       re-cancels authoritatively.</li>
  * </ul>
  */
 @EventBusSubscriber(modid = BlockMod.MODID, value = Dist.CLIENT)
@@ -75,16 +79,7 @@ public final class ClientGuardInputHandler {
         // FR-05: while stunned, guard intent is suppressed client-side — the server
         // re-validates and force-drops anyway (authoritative), this only avoids the
         // rejected-packet churn and the enter/exit flicker in the same tick window.
-        boolean wantSend = desireGuard && plausiblyGuardable(player) && !player.hasEffect(ModEffects.STUN);
-        // R-04 applies only while the SWORD is the would-be active guard equipment
-        // (FR-11: an offhand shield has top priority — the sword's block-target rule
-        // must never override the shield's guard, so a guardable offhand skips it).
-        if (wantSend && desireGuard && Config.swordGuardRequiresNoBlockTarget()
-                && player.getMainHandItem().is(ItemTags.SWORDS)
-                && !player.getOffhandItem().is(ModTags.ITEMS_GUARDABLE)
-                && lookingAtBlock(minecraft)) {
-            wantSend = false; // R-04: block interaction wins over sword guarding
-        }
+        boolean wantSend = desireGuard && wantsGuard(minecraft, player);
 
         boolean stateChanged = wantSend != sentState;
         boolean heartbeatDue = wantSend && ++ticksSinceSend >= Config.stateHeartbeatTicks();
@@ -100,16 +95,58 @@ public final class ClientGuardInputHandler {
         return sentState;
     }
 
+    /**
+     * The would-send-guard predicate (minus the raw mouse desire), shared with
+     * the FR-24 interaction suppression so both agree tick-by-tick:
+     * <ul>
+     *   <li>FR-05: a stunned player holds no guard;</li>
+     *   <li>plausibility: synced item tags only (server re-validates);</li>
+     *   <li>R-04 applies only while the SWORD is the would-be active guard
+     *       equipment (FR-11: an offhand shield has top priority — the sword's
+     *       block-target rule must never override the shield's guard, so a
+     *       guardable offhand skips it) — block interaction stays vanilla.</li>
+     * </ul>
+     */
+    static boolean wantsGuard(Minecraft minecraft, LocalPlayer player) {
+        if (player.hasEffect(ModEffects.STUN)) {
+            return false;
+        }
+        if (!plausiblyGuardable(player)) {
+            return false;
+        }
+        return !(Config.swordGuardRequiresNoBlockTarget()
+                && player.getMainHandItem().is(ItemTags.SWORDS)
+                && !player.getOffhandItem().is(ModTags.ITEMS_GUARDABLE)
+                && minecraft.hitResult instanceof net.minecraft.world.phys.BlockHitResult);
+    }
+
+    /**
+     * FR-24 (2026-09-11 ruling): while the guard intent is live, every vanilla
+     * interaction is suppressed client-side — attack, dig start AND dig
+     * continuation, block use, entity interact, item use. One event covers all:
+     * startAttack, continueAttack and startUseItem all gate through
+     * {@code ClientHooks.onClickInput}. {@code setSwingHand(false)} is mandatory:
+     * all three vanilla call sites still swing (and spray dig particles) on a
+     * cancelled event whenever {@code shouldSwingHand()} is left true. The
+     * server re-cancels authoritatively (ServerGuardInputHandler).
+     */
+    @SubscribeEvent
+    static void onInteractionKeyMapping(InputEvent.InteractionKeyMappingTriggered event) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (player == null || !desireGuard || !wantsGuard(minecraft, player)) {
+            return;
+        }
+        event.setCanceled(true);
+        event.setSwingHand(false);
+    }
+
     /** Client-side plausibility gate: synced item tags only (server re-validates). */
     private static boolean plausiblyGuardable(LocalPlayer player) {
         // Swords only guard from the main hand (vanilla cannot raise an offhand sword).
         return player.getOffhandItem().is(ModTags.ITEMS_GUARDABLE)
                 || player.getMainHandItem().is(ModTags.ITEMS_GUARDABLE)
                 || player.getMainHandItem().is(ItemTags.SWORDS);
-    }
-
-    private static boolean lookingAtBlock(Minecraft minecraft) {
-        return minecraft.hitResult instanceof net.minecraft.world.phys.BlockHitResult;
     }
 
     private ClientGuardInputHandler() {}
