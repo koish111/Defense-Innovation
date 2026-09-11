@@ -224,6 +224,10 @@ Power Guard **requires `stamina > 0` to activate**. It is not available while de
 
 All three cooldowns (parry re-entry, shield bash, power guard) are surfaced to the player as the **vanilla item-cooldown sweep** on the guard item (`player.getCooldowns()`). These overlays are visual only — the guard state machine never consults vanilla `ItemCooldowns`.
 
+**FR-26 exemption boundary (2026-09-11):** the creative/spectator exemption (step 0 of §5.3.1) covers **stamina economy only** — PG drain, regen, depletion edge, sync. The combat state machines (parry expiry, container exit, **shield bash resolution**) run for creative players too: skipping them left a creative player's armed bash windup unresolved forever (bash "worked in survival only" bug). Bash's optional stamina cost is harmless there — the next tick pins stamina back to max.
+
+**Guard interaction lockout (ruling 2026-09-11):** while the guard intent is live, the guarding player must not be able to attack, dig (start *or* continue), use blocks, use items, or interact with entities — and none of those paths may trigger a swing/dig animation. Client: one `InputEvent.InteractionKeyMappingTriggered` cancellation covers all three vanilla call sites (`startAttack`, `continueAttack`, `startUseItem` all gate through `ClientHooks.onClickInput`) — `setSwingHand(false)` is **mandatory**, because every one of those sites still swings (and sprays dig particles) on a cancelled event. Server: `ServerGuardInputHandler` re-cancels `AttackEntityEvent`, `LeftClickBlock`, `RightClickBlock`, `RightClickItem`, `EntityInteract`, `EntityInteractSpecific` authoritatively (hacked-client backstop). E-07 (container exit) thereby degrades to a fallback — containers cannot be opened while guarding. The R-04 sword rule stays intact: with a sword active and a block targeted, no guard intent is sent, so block interaction remains vanilla.
+
 ### 6.8 Stun
 
 `blockmod:stun`, 20 ticks. Its **only** source is a successful parry — it is never a punishment for the defender.
@@ -294,7 +298,7 @@ and paste the regenerated output. Balance tables are **outputs of the formula**,
 
 - **Unit tests cover pure functions only:** `GuardFormulas`, `EffectiveStrengthResolver`, `DamageClassifier`, `BossTracker`, config validation, and regeneration-branch selection, depletion edge detection, and move-malus mount/remove decisions. Target ≥ 90% line coverage on those classes.
 - Use table-driven tests covering valid, invalid, and boundary inputs for every pure function.
-- Manual verification before declaring any gameplay milestone done: exercise blocking, depletion, parry (all equipment variants), shield bash, power guard, stun, and stamina sync on `runServer`, in both single-player and dedicated-server scenarios. The boot-time M2Verify log doubles as the automated acceptance record for stamina branches and the stun freeze.
+- Manual verification before declaring any gameplay milestone done: exercise blocking, depletion, parry (all equipment variants), shield bash, power guard, stun, and stamina sync on `runServer`, in both single-player and dedicated-server scenarios. The boot-time M2Verify log doubles as the automated acceptance record for stamina branches, the stun freeze/defense gate, the creative bash resolution, and the guard interaction lockout.
 - Every bug fix gets a regression test when the logic is a pure function.
 
 ---
