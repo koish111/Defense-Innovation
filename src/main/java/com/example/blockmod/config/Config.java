@@ -167,6 +167,7 @@ public final class Config {
     // [sound]
     // ==================================================================
     private static final ModConfigSpec.ConfigValue<Double> SOUND_PITCH_JITTER;
+    private static final ModConfigSpec.ConfigValue<Double> SOUND_VOLUME_SCALE;
 
     // ==================================================================
     // [debug]
@@ -280,6 +281,7 @@ public final class Config {
 
         BUILDER.push("sound");
         SOUND_PITCH_JITTER = defineDouble("T-40: random pitch jitter (±) applied to every mod sound cue so repeats are not monotone.", "pitch_jitter", 0.05, 0.0, 0.5);
+        SOUND_VOLUME_SCALE = defineDouble("T-40: global volume multiplier for every mod sound cue (0.7 = 30% quieter, 0 = mute, 1 = original).", "volume_scale", 0.7, 0.0, 1.0);
         BUILDER.pop();
 
         BUILDER.push("debug");
@@ -437,6 +439,7 @@ public final class Config {
 
     // [sound]
     public static float soundPitchJitter() { return SOUND_PITCH_JITTER.get().floatValue(); }
+    public static float soundVolumeScale() { return SOUND_VOLUME_SCALE.get().floatValue(); }
 
     // [debug]
     public static boolean verboseLogging() { return VERBOSE_LOGGING.get(); }

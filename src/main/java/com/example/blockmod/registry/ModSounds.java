@@ -46,7 +46,8 @@ public final class ModSounds {
     /**
      * Plays a mod cue at the player's position with a random pitch jitter of
      * {@code [sound].pitch_jitter} (uniform ±, clamped to the 0.5–2.0 range)
-     * so repeated cues are not monotone. Server-side playback only.
+     * so repeated cues are not monotone, and the volume scaled by
+     * {@code [sound].volume_scale}. Server-side playback only.
      */
     public static void play(ServerPlayer player, DeferredHolder<SoundEvent, SoundEvent> sound,
             float volume, float basePitch) {
@@ -56,8 +57,9 @@ public final class ModSounds {
             pitch = basePitch + (player.getRandom().nextFloat() - 0.5f) * 2.0f * jitter;
             pitch = Mth.clamp(pitch, 0.5f, 2.0f);
         }
+        float scaledVolume = volume * Config.soundVolumeScale();
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
-                sound.get(), player.getSoundSource(), volume, pitch);
+                sound.get(), player.getSoundSource(), scaledVolume, pitch);
     }
 
     private ModSounds() {}
