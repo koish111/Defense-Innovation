@@ -8,6 +8,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 import com.example.blockmod.BlockMod;
+import com.example.blockmod.data.SwordBlockingConfig;
 
 /**
  * S2C push of the client-relevant config subset (FR-20/FR-23). Sent on config load
@@ -18,7 +19,8 @@ public record ConfigSyncPayload(
         float maxStamina,
         float regenRate,
         float depletedRegenRate,
-        float regenDelaySeconds) implements CustomPacketPayload {
+        float regenDelaySeconds,
+        SwordBlockingConfig swordBlocking) implements CustomPacketPayload {
 
     public static final Type<ConfigSyncPayload> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "config_sync"));
@@ -28,6 +30,7 @@ public record ConfigSyncPayload(
             ByteBufCodecs.FLOAT, ConfigSyncPayload::regenRate,
             ByteBufCodecs.FLOAT, ConfigSyncPayload::depletedRegenRate,
             ByteBufCodecs.FLOAT, ConfigSyncPayload::regenDelaySeconds,
+            SwordBlockingConfig.STREAM_CODEC, ConfigSyncPayload::swordBlocking,
             ConfigSyncPayload::new);
 
     @Override

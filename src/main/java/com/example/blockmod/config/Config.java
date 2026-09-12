@@ -2,8 +2,13 @@ package com.example.blockmod.config;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.example.blockmod.BlockModLogger;
+import com.example.blockmod.data.SwordBlockingConfig;
+
+import net.minecraft.resources.ResourceLocation;
 
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
@@ -80,9 +85,13 @@ public final class Config {
     private static final ModConfigSpec.BooleanValue AFFECT_CREATIVE;
     private static final ModConfigSpec.ConfigValue<Integer> FRONT_HALF_ANGLE_DEG;
     private static final ModConfigSpec.ConfigValue<Double> EXPLOSION_KNOCKBACK_REDUCTION;
-    private static final ModConfigSpec.BooleanValue SWORD_GUARD_REQUIRES_NO_BLOCK_TARGET;
     private static final ModConfigSpec.ConfigValue<Double> MIN_GB;
     private static final ModConfigSpec.ConfigValue<Double> MAX_GB;
+
+    private static final ModConfigSpec.BooleanValue SWORD_BLOCKING_INCLUDE_SWORDS_TAG;
+    private static final ModConfigSpec.ConfigValue<List<? extends String>> SWORD_BLOCKING_WHITELIST;
+    private static final ModConfigSpec.ConfigValue<List<? extends String>> SWORD_BLOCKING_BLACKLIST;
+    private static volatile SwordBlockingConfig swordBlocking = SwordBlockingConfig.DEFAULT;
 
     // ==================================================================
     // [parry]
@@ -203,9 +212,22 @@ public final class Config {
         AFFECT_CREATIVE = BUILDER.comment("ADR-13: apply stamina costs to creative players. Default off (creative exempt).").define("affect_creative", false);
         FRONT_HALF_ANGLE_DEG = defineInt("Half angle of the frontal guard arc in degrees. 90 = frontal 180 degrees.", "front_half_angle_deg", 90, 10, 180);
         EXPLOSION_KNOCKBACK_REDUCTION = defineDouble("Knockback taken off a blocked explosion. Designer ruling 2026-08-30 supersedes ADR-12: 1.0 = blocked explosions ignore knockback entirely.", "explosion_knockback_reduction", 1.0, 0.0, 1.0);
-        SWORD_GUARD_REQUIRES_NO_BLOCK_TARGET = BUILDER.comment("R-04: sword guarding requires not looking at a usable block (vanilla right-click wins otherwise).").define("sword_guard_requires_no_block_target", true);
         MIN_GB = defineDouble("ADR-09: lower clamp for guard strength.", "min_gb", 0.01, 0.0, 0.5);
         MAX_GB = defineDouble("ADR-09: upper clamp for guard strength. Must stay below 1.0.", "max_gb", 0.95, 0.5, 0.99);
+        BUILDER.pop();
+
+        BUILDER.comment("Sword blocking item selection. Shields keep their own guard profiles.").push("sword_blocking");
+        SWORD_BLOCKING_INCLUDE_SWORDS_TAG = BUILDER.comment(
+                "Allow all #minecraft:swords items and explicit sword guard profiles by default.",
+                "Set false to allow only items in whitelist.").define("include_swords_tag", true);
+        SWORD_BLOCKING_WHITELIST = BUILDER.comment(
+                "Additional item IDs allowed to sword-block, for example minecraft:stick.",
+                "An item in both lists is denied. Existing shield profiles remain shields.")
+                .defineListAllowEmpty("whitelist", List.of(), () -> "minecraft:iron_sword", Config::isItemId);
+        SWORD_BLOCKING_BLACKLIST = BUILDER.comment(
+                "Item IDs forbidden from sword-blocking, including tagged swords and sword profiles.",
+                "Blacklist takes precedence over whitelist.")
+                .defineListAllowEmpty("blacklist", List.of(), () -> "minecraft:wooden_sword", Config::isItemId);
         BUILDER.pop();
 
         BUILDER.push("parry");
@@ -367,12 +389,13 @@ public final class Config {
     public static boolean affectCreative() { return AFFECT_CREATIVE.get(); }
     public static int frontHalfAngleDeg() { return FRONT_HALF_ANGLE_DEG.get(); }
     public static float explosionKnockbackReduction() { return EXPLOSION_KNOCKBACK_REDUCTION.get().floatValue(); }
-    public static boolean swordGuardRequiresNoBlockTarget() { return SWORD_GUARD_REQUIRES_NO_BLOCK_TARGET.get(); }
     public static float minGb() {
         float min = MIN_GB.get().floatValue();
         return min >= maxGb() ? 0.01f : min;
     }
     public static float maxGb() { return MAX_GB.get().floatValue(); }
+
+    public static SwordBlockingConfig swordBlocking() { return swordBlocking; }
 
     // [parry]
     public static int swordParryWindow() { return SWORD_PARRY_WINDOW.get(); }
@@ -488,6 +511,8 @@ public final class Config {
             return;
         }
         validate();
+        swordBlocking = new SwordBlockingConfig(SWORD_BLOCKING_INCLUDE_SWORDS_TAG.get(),
+                itemIds(SWORD_BLOCKING_WHITELIST.get()), itemIds(SWORD_BLOCKING_BLACKLIST.get()));
         BlockModLogger.info("CONFIG",
                 "phase", event instanceof ModConfigEvent.Reloading ? "reloading" : "loading",
                 "maxStamina", MAX_STAMINA.get(),
@@ -495,6 +520,25 @@ public final class Config {
                 "depletedRegenRate", DEPLETED_REGEN_RATE.get(),
                 "MFIX", MFIX.get(), "pfixPve", PFIX_PVE.get(), "pfixPvp", PFIX_PVP.get());
         // FR-20: a config_sync push to all online players lands here with M2 T-18 (networking).
+    }
+
+    private static boolean isItemId(Object value) {
+        boolean valid = value instanceof String id && id.contains(":") && ResourceLocation.tryParse(id) != null;
+        if (!valid) {
+            BlockModLogger.error("CONFIG", "rule", "namespaced item ID", "value", value,
+                    "action", "reject invalid sword blocking entry");
+        }
+        return valid;
+    }
+
+    private static Set<ResourceLocation> itemIds(List<? extends String> values) {
+        var ids = new HashSet<ResourceLocation>();
+        for (String value : values) {
+            if (isItemId(value)) {
+                ids.add(ResourceLocation.parse(value));
+            }
+        }
+        return ids;
     }
 
     private Config() {}

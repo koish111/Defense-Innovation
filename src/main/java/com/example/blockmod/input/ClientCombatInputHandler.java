@@ -1,6 +1,8 @@
 package com.example.blockmod.input;
 
 import com.example.blockmod.BlockMod;
+import com.example.blockmod.client.ClientGuardState;
+import com.example.blockmod.logic.GuardEquipmentResolver;
 import com.example.blockmod.network.PowerGuardPayload;
 import com.example.blockmod.network.ShieldBashPayload;
 import com.example.blockmod.registry.ModKeyMappings;
@@ -12,7 +14,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -23,9 +24,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *   <li><b>Shield bash</b> (FR-15): a left-click while the guard intent is sent
  *       with a medium shield triggers {@code shield_bash}; the server validates
  *       the cooldown and the windup.</li>
- *   <li><b>Power guard</b> (FR-16): the Left Alt binding (remappable) sends
- *       {@code power_guard} on state change; the active intent is only sent while
- *       a great shield is held (synced tag), the release always reports off.</li>
+ *   <li><b>Power guard</b> (FR-16): the Left Ctrl binding (remappable) combines
+ *       with guard intent for two guardable items or one great shield. Guard
+ *       entry is sent first regardless of which physical key was pressed first.</li>
  * </ul>
  */
 @EventBusSubscriber(modid = BlockMod.MODID, value = Dist.CLIENT)
@@ -51,28 +52,22 @@ public final class ClientCombatInputHandler {
         }
     }
 
-    @SubscribeEvent
-    static void onClientTick(ClientTickEvent.Post event) {
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
+    static void updatePowerGuardIntent(LocalPlayer player, boolean guardingIntent) {
         if (player == null) {
-            if (powerGuardActive) {
-                powerGuardActive = false; // leaving the world disarms silently
-            }
+            powerGuardActive = false;
             return;
         }
         boolean keyDown = ModKeyMappings.POWER_GUARD.isDown();
-        boolean wantActive = keyDown && isGreatShieldHeld(player);
+        boolean wantActive = guardingIntent && keyDown
+                && GuardEquipmentResolver.canPowerGuard(player, ClientGuardState.swordBlocking());
         if (wantActive != powerGuardActive) {
             powerGuardActive = wantActive;
             PacketDistributor.sendToServer(new PowerGuardPayload(wantActive));
         }
     }
 
-    /** Great shields only (synced tag); the server re-validates the profile. */
-    private static boolean isGreatShieldHeld(LocalPlayer player) {
-        return player.getOffhandItem().is(ModTags.ITEMS_GREAT_SHIELDS)
-                || player.getMainHandItem().is(ModTags.ITEMS_GREAT_SHIELDS);
+    static void resetPowerGuardIntent() {
+        powerGuardActive = false;
     }
 
     private ClientCombatInputHandler() {}

@@ -63,6 +63,7 @@ public final class ParryService {
 
     /** Called from the guard-exit path; anchors the ADR-07 re-entry cooldown to the release. */
     public static void closeWindowOnRelease(ServerPlayer player, GuardStateData guardState, long now) {
+        guardState.setParryWindowEndTick(-1L);
         long cooldownEnd = now + Config.parryCooldownTicks();
         if (guardState.parryReadyTick() < cooldownEnd) {
             guardState.setParryReadyTick(cooldownEnd);

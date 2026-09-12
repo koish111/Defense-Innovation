@@ -16,15 +16,15 @@ import net.neoforged.neoforge.registries.datamaps.DataMapType;
  * to classify {@code minecraft:shield} as a medium shield without touching vanilla
  * code. Removing the datapack file returns the vanilla shield to "unguardable".
  *
- * <p>JSON location: {@code data/blockmod/data_maps/item/guard_profile.json}.
- * Values are server-side only (not {@code synced}); the guard resolver runs on the
- * server, and client tooltips for items without the stack component show nothing.
+ * <p>Values are synced so client guard input and poses use the same equipment
+ * classification as the authoritative server, including datapack extensions.
  */
 public final class ModDataMaps {
     public static final DataMapType<Item, GuardProfile> GUARD_PROFILE = DataMapType.builder(
             ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "guard_profile"),
             Registries.ITEM,
             GuardProfile.CODEC)
+            .synced(GuardProfile.CODEC, true)
             .build();
 
     /** Registers the data map type on the mod event bus (RegisterDataMapTypesEvent). */

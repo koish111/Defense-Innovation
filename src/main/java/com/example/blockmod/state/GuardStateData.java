@@ -2,6 +2,11 @@ package com.example.blockmod.state;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+
+import com.example.blockmod.data.ShieldType;
+import com.example.blockmod.data.GuardProfile;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Per-player guard state attachment ({@code blockmod:guard_state}, NOT serialized —
@@ -11,10 +16,14 @@ import net.minecraft.world.InteractionHand;
 public final class GuardStateData {
     private boolean guarding;
     private InteractionHand guardHand = InteractionHand.MAIN_HAND;
+    private ItemStack guardStack = ItemStack.EMPTY;
+    private ShieldType guardType = ShieldType.SWORD;
     private long parryWindowEndTick = -1L;
     private boolean parryUsed;
     private long parryReadyTick = -1L;
     private boolean powerGuarding;
+    private ItemStack secondaryGuardStack = ItemStack.EMPTY;
+    private GuardProfile secondaryGuardProfile;
     private long powerGuardReadyTick = -1L;
     private long bashWindupEndTick = -1L;
     private long bashReadyTick = -1L;
@@ -27,6 +36,18 @@ public final class GuardStateData {
 
     public void setGuarding(boolean guarding) {
         this.guarding = guarding;
+        if (!guarding) {
+            guardStack = ItemStack.EMPTY;
+        }
+    }
+
+    public ItemStack guardStack() { return guardStack; }
+
+    public ShieldType guardType() { return guardType; }
+
+    public void setGuardEquipment(ItemStack stack, ShieldType type) {
+        guardStack = stack;
+        guardType = type;
     }
 
     public InteractionHand guardHand() {
@@ -67,6 +88,20 @@ public final class GuardStateData {
 
     public void setPowerGuarding(boolean powerGuarding) {
         this.powerGuarding = powerGuarding;
+        if (!powerGuarding) {
+            secondaryGuardStack = ItemStack.EMPTY;
+            secondaryGuardProfile = null;
+        }
+    }
+
+    public ItemStack secondaryGuardStack() { return secondaryGuardStack; }
+
+    @Nullable
+    public GuardProfile secondaryGuardProfile() { return secondaryGuardProfile; }
+
+    public void setSecondaryGuardEquipment(ItemStack stack, @Nullable GuardProfile profile) {
+        secondaryGuardStack = stack;
+        secondaryGuardProfile = profile;
     }
 
     public long powerGuardReadyTick() {

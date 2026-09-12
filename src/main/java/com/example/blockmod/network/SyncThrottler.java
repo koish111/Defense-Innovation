@@ -6,11 +6,17 @@ import java.util.UUID;
 
 import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.config.Config;
+import com.example.blockmod.logic.GuardEquipmentResolver;
+import com.example.blockmod.logic.GuardRules;
+import com.example.blockmod.logic.MixinHooks;
+import com.example.blockmod.logic.PowerGuardService;
 import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -26,7 +32,7 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
  * bounded by the online player count (AGENTS.md §7.1 scoped-cache rule).
  */
 public final class SyncThrottler {
-    private record SyncState(long lastSyncTick, float lastSyncedStamina) {}
+    private record SyncState(long lastSyncTick, float lastSyncedStamina, GuardPoseSyncPayload guardPose) {}
 
     private static final Map<UUID, SyncState> STATES = new HashMap<>();
 
@@ -52,15 +58,24 @@ public final class SyncThrottler {
 
     /** Pushes the active config subset to every online player (FR-20, config hot reload). */
     public static void sendConfigToAll(Iterable<ServerPlayer> players) {
-        ConfigSyncPayload payload = new ConfigSyncPayload(
-                Config.maxStamina(), Config.regenRate(), Config.depletedRegenRate(), Config.regenDelaySeconds());
+        ConfigSyncPayload payload = configPayload();
         int count = 0;
         for (ServerPlayer player : players) {
             applyStaminaRescale(player); // E-14: keep stamina proportional when max_stamina changes
             PacketDistributor.sendToPlayer(player, payload);
+            forceSync(player);
             count++;
         }
         BlockModLogger.info("CONFIG_SYNC", "players", count, "maxStamina", Config.maxStamina());
+    }
+
+    public static void sendConfig(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, configPayload());
+    }
+
+    private static ConfigSyncPayload configPayload() {
+        return new ConfigSyncPayload(Config.maxStamina(), Config.regenRate(), Config.depletedRegenRate(),
+                Config.regenDelaySeconds(), Config.swordBlocking());
     }
 
     /** E-14: scale the current stamina proportionally when max_stamina changed on reload. */
@@ -77,12 +92,12 @@ public final class SyncThrottler {
 
     /** FR-20: on config load/reload, push the new values if a server is running. */
     public static void onConfigLoad(ModConfigEvent event) {
-        if (event instanceof ModConfigEvent.Unloading) {
+        if (event.getConfig().getSpec() != Config.SPEC || event instanceof ModConfigEvent.Unloading) {
             return;
         }
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server != null) {
-            sendConfigToAll(server.getPlayerList().getPlayers());
+            server.execute(() -> sendConfigToAll(server.getPlayerList().getPlayers()));
         }
     }
 
@@ -95,7 +110,41 @@ public final class SyncThrottler {
         PacketDistributor.sendToPlayer(player, new StaminaSyncPayload(
                 stamina.stamina(), Config.maxStamina(), stamina.isDepleted(),
                 guardState.isGuarding(), parryRemain));
-        STATES.put(player.getUUID(), new SyncState(now, stamina.stamina()));
+        ItemStack mainStack = guardPoseStack(player, InteractionHand.MAIN_HAND);
+        ItemStack offStack = guardPoseStack(player, InteractionHand.OFF_HAND);
+        SyncState previous = STATES.get(player.getUUID());
+        GuardPoseSyncPayload guardPose = previous == null ? null : previous.guardPose();
+        if (guardPose == null || guardPose.powerGuarding() != guardState.isPowerGuarding()
+                || !ItemStack.isSameItemSameComponents(guardPose.mainHand(), mainStack)
+                || !ItemStack.isSameItemSameComponents(guardPose.offHand(), offStack)) {
+            guardPose = new GuardPoseSyncPayload(player.getUUID(), mainStack, offStack, guardState.isPowerGuarding());
+            PacketDistributor.sendToPlayersTrackingEntityAndSelf(player, guardPose);
+        }
+        STATES.put(player.getUUID(), new SyncState(now, stamina.stamina(), guardPose));
+    }
+
+    /** Read-only presentation snapshot; depletion never changes the underlying guard intent. */
+    public static ItemStack guardPoseStack(ServerPlayer player, InteractionHand hand) {
+        GuardStateData guard = player.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
+        int expectedSlot = guard.guardHand() == InteractionHand.MAIN_HAND
+                ? GuardRules.SLOT_MAINHAND : GuardRules.SLOT_OFFHAND;
+        if (!guard.isGuarding() || guard.guardStack().isEmpty()
+                || !player.getData(com.example.blockmod.registry.ModAttachments.STAMINA.get()).canDefend()
+                || MixinHooks.isStunned(player)
+                || player.getItemInHand(guard.guardHand()) != guard.guardStack()
+                || GuardEquipmentResolver.resolveSlot(player, Config.swordBlocking()) != expectedSlot
+                || GuardEquipmentResolver.typeOf(guard.guardStack(), Config.swordBlocking()) != guard.guardType()) {
+            return ItemStack.EMPTY;
+        }
+        if (hand == guard.guardHand()) return guard.guardStack();
+        return PowerGuardService.secondaryProfile(player, guard) == null ? ItemStack.EMPTY : guard.secondaryGuardStack();
+    }
+
+    public static void sendGuardPoseToTracker(ServerPlayer defender, ServerPlayer observer) {
+        GuardStateData guard = defender.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
+        PacketDistributor.sendToPlayer(observer,
+                new GuardPoseSyncPayload(defender.getUUID(), guardPoseStack(defender, InteractionHand.MAIN_HAND),
+                        guardPoseStack(defender, InteractionHand.OFF_HAND), guard.isPowerGuarding()));
     }
 
     /** Drops the bookkeeping state of a disconnected player (bounded-cache hygiene). */

@@ -7,6 +7,7 @@ import com.example.blockmod.network.GuardInputPayload;
 import com.example.blockmod.network.PowerGuardPayload;
 import com.example.blockmod.network.ShieldBashPayload;
 import com.example.blockmod.network.StaminaSyncPayload;
+import com.example.blockmod.network.GuardPoseSyncPayload;
 
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -19,11 +20,13 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  */
 public final class ModPayloads {
     public static void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("1");
+        PayloadRegistrar registrar = event.registrar("3");
         registrar.playToClient(StaminaSyncPayload.TYPE, StaminaSyncPayload.STREAM_CODEC,
                 (payload, context) -> ClientGuardState.acceptStaminaSync(payload));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
                 (payload, context) -> ClientGuardState.acceptConfigSync(payload));
+        registrar.playToClient(GuardPoseSyncPayload.TYPE, GuardPoseSyncPayload.STREAM_CODEC,
+                (payload, context) -> com.example.blockmod.client.GuardPoseRenderer.acceptSync(payload));
         registrar.playToClient(com.example.blockmod.network.BashWindupPayload.TYPE,
                 com.example.blockmod.network.BashWindupPayload.STREAM_CODEC,
                 (payload, context) -> com.example.blockmod.client.ShieldBashAnimation
@@ -42,8 +45,7 @@ public final class ModPayloads {
                 (payload, context) -> {
                     net.minecraft.server.level.ServerPlayer player =
                             (net.minecraft.server.level.ServerPlayer) context.player();
-                    com.example.blockmod.logic.PowerGuardService.handleActivation(player,
-                            payload.active(), player.level().getGameTime());
+                    ServerGuardInputHandler.handlePowerGuard(player, payload.active());
                 });
     }
 

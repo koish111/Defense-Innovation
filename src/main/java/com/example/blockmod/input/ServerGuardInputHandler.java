@@ -10,6 +10,7 @@ import com.example.blockmod.config.Config;
 import com.example.blockmod.data.ShieldType;
 import com.example.blockmod.logic.GuardEquipmentResolver;
 import com.example.blockmod.logic.GuardEquipmentResolver.GuardEquipment;
+import com.example.blockmod.logic.GuardRules;
 import com.example.blockmod.logic.MixinHooks;
 import com.example.blockmod.logic.MovementService;
 import com.example.blockmod.network.GuardInputPayload;
@@ -52,6 +53,10 @@ public final class ServerGuardInputHandler {
         if (!consumeRateToken(player, now)) {
             return; // E-12: over the limit — drop
         }
+        GuardStateData guardState = player.getData(ModAttachments.GUARD_STATE.get());
+        if (guardState.isGuarding() && !reconcileEquipment(player, guardState, now)) {
+            return;
+        }
         GuardEquipment equipment = payload.guarding() ? GuardEquipmentResolver.resolve(player) : null;
         if (payload.guarding() && equipment == null) {
             BlockModLogger.warn("GUARD_INPUT", "action", "rejected", "player", player.getGameProfile().getName(),
@@ -64,11 +69,11 @@ public final class ServerGuardInputHandler {
             return; // FR-05: a stunned player can neither raise nor hold a guard
         }
 
-        GuardStateData guardState = player.getData(ModAttachments.GUARD_STATE.get());
         if (guardState.isGuarding() != payload.guarding()) {
             guardState.setGuarding(payload.guarding());
             if (payload.guarding()) {
                 guardState.setGuardHand(equipment.hand());
+                guardState.setGuardEquipment(equipment.stack(), equipment.profile().type());
                 // FR-17 decision table: mount the malus immediately on a valid guard enter
                 // (depleted entries are gated out inside apply — staminaPositive check).
                 com.example.blockmod.logic.MovementService.apply(player, guardState, equipment.profile(),
@@ -90,6 +95,14 @@ public final class ServerGuardInputHandler {
         }
         LAST_INPUT_TICK.put(player.getUUID(), now);
         SyncThrottler.forceSync(player); // guard enter/exit always syncs immediately (FR-23)
+    }
+
+    public static void handlePowerGuard(ServerPlayer player, boolean active) {
+        long now = player.level().getGameTime();
+        if (!consumeRateToken(player, now)) return;
+        GuardStateData guard = player.getData(ModAttachments.GUARD_STATE.get());
+        if (!reconcileEquipment(player, guard, now)) return;
+        com.example.blockmod.logic.PowerGuardService.handleActivation(player, active, now);
     }
 
     /**
@@ -180,6 +193,9 @@ public final class ServerGuardInputHandler {
             }
             Long last = LAST_INPUT_TICK.get(player.getUUID());
             long now = player.level().getGameTime();
+            if (!reconcileEquipment(player, guardState, now)) {
+                continue;
+            }
             if (last == null || now - last > Config.guardTimeoutTicks()) {
                 dropGuard(player, guardState, now);
                 BlockModLogger.warn("GUARD_INPUT", "action", "timeout_drop", "player",
@@ -195,6 +211,25 @@ public final class ServerGuardInputHandler {
         }
     }
 
+    /** A replaced or newly forbidden item cannot retain guard, parry, PG or interaction lockout. */
+    public static boolean reconcileEquipment(ServerPlayer player, GuardStateData guardState, long now) {
+        if (!guardState.isGuarding()) {
+            return true;
+        }
+        int expectedSlot = guardState.guardHand() == net.minecraft.world.InteractionHand.MAIN_HAND
+                ? GuardRules.SLOT_MAINHAND : GuardRules.SLOT_OFFHAND;
+        boolean sameEquipment = GuardEquipmentResolver.resolveSlot(player, Config.swordBlocking()) == expectedSlot
+                && player.getItemInHand(guardState.guardHand()) == guardState.guardStack()
+                && guardState.guardType() == GuardEquipmentResolver.typeOf(guardState.guardStack(), Config.swordBlocking());
+        if (!sameEquipment) {
+            dropGuard(player, guardState, now);
+            BlockModLogger.info("GUARD_INPUT", "action", "equipment_drop", "player", player.getGameProfile().getName());
+        } else {
+            com.example.blockmod.logic.PowerGuardService.reconcileEquipment(player, guardState, now);
+        }
+        return sameEquipment;
+    }
+
     /** Full authoritative guard exit: state + malus + PG + parry window + sync. */
     private static void dropGuard(ServerPlayer player, GuardStateData guardState, long now) {
         guardState.setGuarding(false);
@@ -208,6 +243,19 @@ public final class ServerGuardInputHandler {
     static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         RATES.remove(event.getEntity().getUUID());
         LAST_INPUT_TICK.remove(event.getEntity().getUUID());
+    }
+
+    @SubscribeEvent
+    static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            var state = player.getData(ModAttachments.GUARD_STATE.get());
+            if (state.isGuarding()) {
+                dropGuard(player, state, player.level().getGameTime());
+            }
+            LAST_INPUT_TICK.remove(player.getUUID());
+            SyncThrottler.clear(player.getUUID());
+            SyncThrottler.forceSync(player);
+        }
     }
 
     private ServerGuardInputHandler() {}

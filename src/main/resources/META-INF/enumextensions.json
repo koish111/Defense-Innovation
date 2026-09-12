@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "enum": "net/minecraft/client/model/HumanoidModel$ArmPose",
+      "name": "BLOCKMOD_SWORD_BLOCK",
+      "constructor": "(ZLnet/neoforged/neoforge/client/IArmPoseTransformer;)V",
+      "parameters": {
+        "class": "com/example/blockmod/client/SwordGuardArmPose",
+        "field": "SWORD_BLOCK"
+      }
+    }
+  ]
+}
