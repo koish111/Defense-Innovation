@@ -23,7 +23,10 @@ public final class DurabilityService {
     private DurabilityService() {}
 
     public static void consume(ServerPlayer player, GuardEquipment equipment, float blockedDamage) {
-        GuardProfile profile = equipment.profile();
+        consume(player, equipment.stack(), equipment.profile(), blockedDamage);
+    }
+
+    public static void consume(ServerPlayer player, ItemStack stack, GuardProfile profile, float blockedDamage) {
         if (!profile.durabilityLoss()) {
             return; // FR-10: swords never lose durability
         }
@@ -34,11 +37,12 @@ public final class DurabilityService {
             return;
         }
         int amount = Mth.floor(blockedDamage) + 1;
-        ItemStack stack = equipment.stack();
         stack.hurtAndBreak(amount, level, player, broken -> {
             // E-08: the shield is gone this tick — force-exit the guard state.
             var guardState = player.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
             guardState.setGuarding(false);
+            PowerGuardService.disarm(player, guardState, player.level().getGameTime());
+            ParryService.closeWindowOnRelease(player, guardState, player.level().getGameTime());
             MovementService.remove(player, guardState);
             SyncThrottler.forceSync(player);
             BlockModLogger.info("DURABILITY", "action", "shield_broken", "player", player.getGameProfile().getName());

@@ -2,6 +2,7 @@ package com.example.blockmod.client;
 
 import com.example.blockmod.network.ConfigSyncPayload;
 import com.example.blockmod.network.StaminaSyncPayload;
+import com.example.blockmod.data.SwordBlockingConfig;
 
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
@@ -27,6 +28,7 @@ public final class ClientGuardState {
     private static boolean depleted;
     private static boolean guarding;
     private static int parryRemainTicks;
+    private static SwordBlockingConfig swordBlocking = SwordBlockingConfig.DEFAULT;
 
     public static void acceptStaminaSync(StaminaSyncPayload payload) {
         BucklerParryAnimation.acceptStaminaSync(payload);
@@ -54,6 +56,20 @@ public final class ClientGuardState {
         regenRate = payload.regenRate();
         depletedRegenRate = payload.depletedRegenRate();
         regenDelaySeconds = payload.regenDelaySeconds();
+        swordBlocking = payload.swordBlocking();
+    }
+
+    public static SwordBlockingConfig swordBlocking() { return swordBlocking; }
+
+    public static void reset() {
+        displayStamina = Float.NaN;
+        previousDisplayStamina = Float.NaN;
+        targetStamina = 0.0f;
+        unchangedFullTicks = 0;
+        depleted = false;
+        guarding = false;
+        parryRemainTicks = 0;
+        swordBlocking = SwordBlockingConfig.DEFAULT;
     }
 
     /** Advances the ADR-04 interpolation once per client tick. */

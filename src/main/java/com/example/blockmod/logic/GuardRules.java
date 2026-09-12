@@ -87,7 +87,7 @@ public final class GuardRules {
     /** Slot classes fed into {@link #resolveEquipmentSlot}. */
     public static final int EQUIP_NONE = 0;
     public static final int EQUIP_PROFILE = 1;  // guard_profile component or data map
-    public static final int EQUIP_SWORD = 2;    // #minecraft:swords (main-hand-only: vanilla cannot raise an offhand sword)
+    public static final int EQUIP_SWORD = 2;    // sword policy in either hand
     public static final int EQUIP_SHIELD = 3;   // #blockmod:guardable shield-family without a profile (Spec §5.12 step 3)
 
     /** Slot a resolved equipment came from. */
@@ -95,16 +95,20 @@ public final class GuardRules {
     public static final int SLOT_OFFHAND = 1;
     public static final int SLOT_MAINHAND = 2;
 
+    /** Sword defaults and explicit additions are both subject to the blacklist. */
+    public static boolean swordGuardAllowed(boolean defaultSword, boolean includeSwordsTag,
+            boolean whitelisted, boolean blacklisted) {
+        return !blacklisted && (whitelisted || includeSwordsTag && defaultSword);
+    }
+
     /**
-     * §5.12 / FR-11 priority — the offhand shield wins over everything (FR-11,
-     * ADR-10: no dual shields):
+     * §5.12 / FR-11 primary-item priority; dual Power Guard adds the other hand:
      * <ol>
      *   <li>offhand profile or shield-family guardable → offhand;</li>
      *   <li>mainhand profile or shield-family guardable → mainhand;</li>
      *   <li>mainhand sword → mainhand.</li>
+     *   <li>offhand sword → offhand.</li>
      * </ol>
-     * An offhand {@code EQUIP_SWORD} still guards nothing: vanilla cannot raise an
-     * offhand sword (the {@code EQUIP_SWORD} class is main-hand-only by design).
      */
     public static int resolveEquipmentSlot(int offhandClass, int mainhandClass) {
         if (offhandClass == EQUIP_PROFILE || offhandClass == EQUIP_SHIELD) {
@@ -116,7 +120,14 @@ public final class GuardRules {
         if (mainhandClass == EQUIP_SWORD) {
             return SLOT_MAINHAND;
         }
+        if (offhandClass == EQUIP_SWORD) {
+            return SLOT_OFFHAND;
+        }
         return SLOT_NONE;
+    }
+
+    public static boolean powerGuardEquipmentAllowed(boolean primaryGreatShield, boolean secondaryGuardable) {
+        return primaryGreatShield || secondaryGuardable;
     }
 
     // ------------------------------------------------------------------
@@ -126,6 +137,10 @@ public final class GuardRules {
             float minGb, float maxGb) {
         float effective = powerGuarding ? GuardFormulas.combineStrength(baseGb, powerGuardBonus) : baseGb;
         return Math.min(Math.max(effective, minGb), maxGb);
+    }
+
+    public static float combinedGuardStrength(float primary, float secondary, float minGb, float maxGb) {
+        return Math.clamp(1f - (1f - primary) * (1f - secondary), minGb, maxGb);
     }
 
     // ------------------------------------------------------------------

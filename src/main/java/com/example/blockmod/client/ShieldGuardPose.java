@@ -98,8 +98,7 @@ public final class ShieldGuardPose {
     /**
      * The hand the guard pose applies to — the guard's active shield with
      * offhand priority (FR-11, client mirror). {@code null} when no shield is
-     * held, in which case nothing is posed (a sword guard keeps the vanilla
-     * render).
+     * held; swords are posed separately by {@link GuardPoseRenderer}.
      */
     static InteractionHand activeShieldHand(AbstractClientPlayer player) {
         if (player.getOffhandItem().is(com.example.blockmod.registry.ModTags.ITEMS_GUARDABLE)

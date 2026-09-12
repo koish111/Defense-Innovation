@@ -77,7 +77,9 @@ final class GuardArmTransforms {
             return false;
         }
         ItemStack stack = event.getItemStack();
-        boolean matches = requiredTag != null ? stack.is(requiredTag) : ModTags.isShieldItem(stack);
+        boolean matches = requiredTag != null ? stack.is(requiredTag)
+                : com.example.blockmod.logic.GuardEquipmentResolver.isGuardable(stack, ClientGuardState.swordBlocking())
+                    && !com.example.blockmod.logic.GuardEquipmentResolver.isSword(stack, ClientGuardState.swordBlocking());
         if (!matches) {
             return false;
         }
@@ -85,9 +87,9 @@ final class GuardArmTransforms {
         if (!(minecraft.player instanceof AbstractClientPlayer player)) {
             return false;
         }
-        // Pose only the guard's active shield hand (offhand priority, FR-11) —
-        // this also keeps both-holds-shield from posing twice.
-        if (ShieldGuardPose.activeShieldHand(player) != event.getHand()) {
+        if (!GuardPoseRenderer.shouldPose(player, event.getHand())
+                || !ItemStack.isSameItemSameComponents(stack, player.getItemInHand(event.getHand()))
+                || (requiredTag != null && ShieldGuardPose.activeShieldHand(player) != event.getHand())) {
             return false;
         }
         boolean mainHand = event.getHand() == InteractionHand.MAIN_HAND;

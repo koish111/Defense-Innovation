@@ -2,6 +2,7 @@ package com.example.blockmod.logic;
 
 import com.example.blockmod.config.Config;
 import com.example.blockmod.data.GuardProfile;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * §5.9.2: effective guard strength = base gb composed with the power-guard bonus
@@ -18,5 +19,11 @@ public final class EffectiveStrengthResolver {
                 powerGuarding && profile.type() == com.example.blockmod.data.ShieldType.GREAT,
                 Config.minGb(),
                 Config.maxGb());
+    }
+
+    public static float resolve(GuardProfile primary, @Nullable GuardProfile secondary, boolean powerGuarding) {
+        float strength = resolve(primary, powerGuarding);
+        return !powerGuarding || secondary == null ? strength
+                : GuardRules.combinedGuardStrength(strength, resolve(secondary, true), Config.minGb(), Config.maxGb());
     }
 }

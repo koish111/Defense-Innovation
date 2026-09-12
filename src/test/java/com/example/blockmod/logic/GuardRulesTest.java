@@ -20,6 +20,30 @@ class GuardRulesTest {
     private static final float DEPLETED = 8.0f;
     private static final long DELAY_TICKS = 40L; // 2.0 s × 20
 
+    @ParameterizedTest(name = "sword={0} defaults={1} whitelist={2} blacklist={3} -> {4}")
+    @CsvSource({
+            "false, false, false, false, false",
+            "false, false, false, true,  false",
+            "false, false, true,  false, true",
+            "false, false, true,  true,  false",
+            "false, true,  false, false, false",
+            "false, true,  false, true,  false",
+            "false, true,  true,  false, true",
+            "false, true,  true,  true,  false",
+            "true,  false, false, false, false",
+            "true,  false, false, true,  false",
+            "true,  false, true,  false, true",
+            "true,  false, true,  true,  false",
+            "true,  true,  false, false, true",
+            "true,  true,  false, true,  false",
+            "true,  true,  true,  false, true",
+            "true,  true,  true,  true,  false"
+    })
+    void swordEligibility(boolean defaultSword, boolean includeSwordsTag,
+            boolean whitelisted, boolean blacklisted, boolean expected) {
+        assertEquals(expected, GuardRules.swordGuardAllowed(defaultSword, includeSwordsTag, whitelisted, blacklisted));
+    }
+
     private static float rate(float stamina, boolean guarding, boolean powerGuarding, long ticksSinceEvent) {
         return GuardRules.regenRatePerSecond(stamina, guarding, powerGuarding,
                 ticksSinceEvent, DELAY_TICKS, REGEN, GUARD_MULT, DEPLETED);
