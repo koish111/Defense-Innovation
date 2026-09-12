@@ -33,7 +33,8 @@
 	},
 	"sword_parry": {
 		"sounds": [
-			"blockmod:sword_parry"
+			"blockmod:sword_parry1",
+			"blockmod:sword_parry2"
 		]
 	},
 	"shield_counter": {
