@@ -37,6 +37,7 @@ public final class PlayerTickHandler {
         StaminaData stamina = player.getData(ModAttachments.STAMINA.get());
         GuardStateData guardState = player.getData(ModAttachments.GUARD_STATE.get());
         long now = player.level().getGameTime();
+        com.example.blockmod.logic.PowerGuardService.reconcileEquipment(player, guardState, now);
 
         // 0. creative / spectator exemption (FR-26) — stamina ECONOMY only. The
         // combat state machines (parry expiry, container exit, bash resolution)

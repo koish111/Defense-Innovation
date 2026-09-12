@@ -61,7 +61,24 @@ public final class StaminaPersistenceHandler {
         }
         StaminaData stamina = player.getData(ModAttachments.STAMINA.get());
         player.getData(ModAttachments.GUARD_STATE.get()).setWasDepleted(stamina.isDepleted());
+        SyncThrottler.sendConfig(player);
         SyncThrottler.forceSync(player);
+    }
+
+    @SubscribeEvent
+    static void onStartTracking(PlayerEvent.StartTracking event) {
+        if (event.getTarget() instanceof ServerPlayer defender && event.getEntity() instanceof ServerPlayer observer) {
+            SyncThrottler.sendGuardPoseToTracker(defender, observer);
+        }
+    }
+
+    @SubscribeEvent
+    static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            SyncThrottler.clear(player.getUUID());
+            SyncThrottler.sendConfig(player);
+            SyncThrottler.forceSync(player);
+        }
     }
 
     @SubscribeEvent

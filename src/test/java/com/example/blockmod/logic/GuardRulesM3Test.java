@@ -92,7 +92,7 @@ class GuardRulesM3Test {
     }
 
     @Test
-    @DisplayName("resolveEquipment_副手剑加标签盾: 副手剑不格挡 → 主手标签盾")
+    @DisplayName("Mainhand shield takes priority over offhand sword")
     void resolveOffhandSwordPlusTagShield() {
         assertEquals(GuardRules.SLOT_MAINHAND, GuardRules.resolveEquipmentSlot(SWORD, SHIELD));
     }
@@ -122,9 +122,40 @@ class GuardRulesM3Test {
     }
 
     @Test
-    @DisplayName("resolveEquipment_副手剑不格挡")
-    void resolveOffhandSwordNeverGuards() {
-        assertEquals(GuardRules.SLOT_NONE, GuardRules.resolveEquipmentSlot(SWORD, NONE));
+    @DisplayName("Offhand sword guards when the mainhand cannot guard")
+    void resolveOffhandSwordGuards() {
+        assertEquals(GuardRules.SLOT_OFFHAND, GuardRules.resolveEquipmentSlot(SWORD, NONE));
+    }
+
+    @Test
+    @DisplayName("Mainhand sword takes priority when both hands hold swords")
+    void resolveDualSwordsUsesMainhand() {
+        assertEquals(GuardRules.SLOT_MAINHAND, GuardRules.resolveEquipmentSlot(SWORD, SWORD));
+    }
+
+    @Test
+    @DisplayName("Mainhand shield profile takes priority over offhand sword")
+    void resolveMainhandShieldProfileBeatsOffhandSword() {
+        assertEquals(GuardRules.SLOT_MAINHAND, GuardRules.resolveEquipmentSlot(SWORD, PROFILE));
+    }
+
+    @Test
+    @DisplayName("Two guardable items can power guard without a great shield")
+    void dualEquipmentCanPowerGuard() {
+        assertTrue(GuardRules.powerGuardEquipmentAllowed(false, true));
+        assertTrue(GuardRules.powerGuardEquipmentAllowed(true, true));
+        assertTrue(GuardRules.powerGuardEquipmentAllowed(true, false));
+        assertFalse(GuardRules.powerGuardEquipmentAllowed(false, false));
+    }
+
+    @Test
+    @DisplayName("Dual guard combines defenses multiplicatively and respects the cap")
+    void dualGuardStrengthIsBounded() {
+        assertEquals(0.36f, GuardRules.combinedGuardStrength(0.20f, 0.20f, 0.01f, 0.95f), 1e-6f);
+        assertEquals(0.52f, GuardRules.combinedGuardStrength(0.20f, 0.40f, 0.01f, 0.95f), 1e-6f);
+        assertEquals(0.64f, GuardRules.combinedGuardStrength(0.40f, 0.40f, 0.01f, 0.95f), 1e-6f);
+        assertEquals(0.95f, GuardRules.combinedGuardStrength(0.95f, 0.95f, 0.01f, 0.95f), 1e-6f);
+        assertEquals(0.01f, GuardRules.combinedGuardStrength(0.0f, 0.0f, 0.01f, 0.95f), 1e-6f);
     }
 
     // ------------------------------------------------------------------

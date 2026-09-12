@@ -1,18 +1,32 @@
 package com.example.blockmod.verify;
 
 import java.util.UUID;
+import java.util.Set;
 
 import com.example.blockmod.BlockMod;
 import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.config.Config;
+import com.example.blockmod.data.GuardProfile;
+import com.example.blockmod.data.ShieldType;
+import com.example.blockmod.data.SwordBlockingConfig;
 import com.example.blockmod.handler.PlayerTickHandler;
+import com.example.blockmod.input.ServerGuardInputHandler;
+import com.example.blockmod.logic.GuardEquipmentResolver;
+import com.example.blockmod.logic.GuardRules;
+import com.example.blockmod.network.GuardPoseSyncPayload;
+import com.example.blockmod.network.SyncThrottler;
+import com.example.blockmod.registry.ModAttachments;
+import com.example.blockmod.registry.ModDataComponents;
 import com.example.blockmod.registry.ModEffects;
 import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
 
 import com.mojang.authlib.GameProfile;
+import io.netty.buffer.Unpooled;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -107,8 +121,236 @@ public final class M2Verify {
         BlockModLogger.info("M2VERIFY", "note", "=== guard interaction lockout (FR-24) ===");
         guardInteractionCases(level, new GuardProbe(level,
                 new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b5"), "M2InteractProbe")));
+        swordBlockingCases(new GuardProbe(level,
+                new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b6"), "M2SwordProbe")));
+        dualGuardCases(level, Items.IRON_SWORD, Items.DIAMOND_SWORD, "swords");
+        dualGuardCases(level, Items.IRON_SWORD, Items.SHIELD, "sword_shield");
+        dualGuardCases(level, Items.SHIELD, Items.IRON_SWORD, "shield_sword");
+        dualGuardCases(level, Items.SHIELD, Items.SHIELD, "shields");
 
         BlockModLogger.info("M2VERIFY", "note", "=== complete ===");
+    }
+
+    /** Exercises real tags, profile precedence and sword presentation snapshots after registries load. */
+    private static void swordBlockingCases(ServerPlayer probe) {
+        for (var item : new net.minecraft.world.item.Item[] {
+                Items.WOODEN_SWORD, Items.STONE_SWORD, Items.IRON_SWORD,
+                Items.GOLDEN_SWORD, Items.DIAMOND_SWORD, Items.NETHERITE_SWORD }) {
+            var stack = new ItemStack(item);
+            probe.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+            swordCheck("tag_" + stack.getItemHolder().getKey().location(),
+                    GuardEquipmentResolver.isSword(stack, SwordBlockingConfig.DEFAULT));
+        }
+
+        var sword = new ItemStack(Items.IRON_SWORD);
+        var stick = new ItemStack(Items.STICK);
+        var swordId = sword.getItemHolder().getKey().location();
+        var stickId = stick.getItemHolder().getKey().location();
+        var additions = new SwordBlockingConfig(true, Set.of(stickId), Set.of(swordId));
+        var onlyListed = new SwordBlockingConfig(false, Set.of(stickId), Set.of());
+        var denied = new SwordBlockingConfig(true, Set.of(stickId), Set.of(stickId));
+        swordCheck("ordinary_item_denied", !GuardEquipmentResolver.isSword(stick, SwordBlockingConfig.DEFAULT));
+        swordCheck("whitelist_addition", GuardEquipmentResolver.isSword(stick, additions));
+        swordCheck("blacklisted_tagged_sword", !GuardEquipmentResolver.isSword(sword, additions));
+        swordCheck("whitelist_only", GuardEquipmentResolver.isSword(stick, onlyListed)
+                && !GuardEquipmentResolver.isSword(sword, onlyListed));
+        swordCheck("blacklist_wins", !GuardEquipmentResolver.isSword(stick, denied));
+
+        stick.set(ModDataComponents.GUARD_PROFILE.get(),
+                new GuardProfile(ShieldType.SWORD, 0.2F, 5, 0.0F, 0.0F, false));
+        swordCheck("sword_profile_obeys_blacklist", !GuardEquipmentResolver.isSword(stick, denied));
+        probe.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, sword);
+        probe.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, new ItemStack(Items.SHIELD));
+        swordCheck("offhand_shield_priority",
+                GuardEquipmentResolver.resolveSlot(probe, additions) == GuardRules.SLOT_OFFHAND);
+        probe.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        probe.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, sword);
+        swordCheck("offhand_sword_alone_enabled",
+                GuardEquipmentResolver.resolveSlot(probe, SwordBlockingConfig.DEFAULT) == GuardRules.SLOT_OFFHAND);
+        probe.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, ItemStack.EMPTY);
+        swordCheck("empty_hands_denied",
+                GuardEquipmentResolver.resolveSlot(probe, SwordBlockingConfig.DEFAULT) == GuardRules.SLOT_NONE);
+
+        var buffer = Unpooled.buffer();
+        try {
+            SwordBlockingConfig.STREAM_CODEC.encode(buffer, additions);
+            swordCheck("config_codec_roundtrip", additions.equals(SwordBlockingConfig.STREAM_CODEC.decode(buffer)));
+        } finally {
+            buffer.release();
+        }
+
+        var snapshot = new GuardPoseSyncPayload(probe.getUUID(), sword, ItemStack.EMPTY, false);
+        sword.set(DataComponents.CUSTOM_NAME, Component.literal("Updated sword"));
+        swordCheck("in_place_component_change_detected",
+                !ItemStack.isSameItemSameComponents(snapshot.mainHand(), sword));
+
+        // Lifecycle probes require an item enabled by the active server policy.
+        if (!GuardEquipmentResolver.isSword(sword, Config.swordBlocking())) {
+            return;
+        }
+        offhandSwordCases(probe, sword);
+        probe.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, sword);
+        var guard = probe.getData(ModAttachments.GUARD_STATE.get());
+        var stamina = probe.getData(ModAttachments.STAMINA.get());
+        guard.setGuarding(true);
+        guard.setGuardHand(net.minecraft.world.InteractionHand.MAIN_HAND);
+        guard.setGuardEquipment(sword, ShieldType.SWORD);
+        stamina.setStamina(Config.maxStamina());
+        swordCheck("active_pose", SyncThrottler.guardPoseStack(probe, probe.getData(ModAttachments.GUARD_STATE.get()).guardHand()) == sword);
+        stamina.setStamina(0.0F);
+        swordCheck("depletion_hides_pose_keeps_intent",
+                SyncThrottler.guardPoseStack(probe, probe.getData(ModAttachments.GUARD_STATE.get()).guardHand()).isEmpty() && guard.isGuarding());
+        stamina.setStamina(Config.maxStamina());
+        swordCheck("recovery_restores_pose", SyncThrottler.guardPoseStack(probe, probe.getData(ModAttachments.GUARD_STATE.get()).guardHand()) == sword);
+        probe.addEffect(new MobEffectInstance(ModEffects.STUN, 20));
+        swordCheck("stun_hides_pose", SyncThrottler.guardPoseStack(probe, probe.getData(ModAttachments.GUARD_STATE.get()).guardHand()).isEmpty());
+        probe.removeEffect(ModEffects.STUN);
+        guard.setParryWindowEndTick(probe.level().getGameTime() + Config.swordParryWindow());
+        probe.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_SWORD));
+        ServerGuardInputHandler.reconcileEquipment(probe, guard, probe.level().getGameTime());
+        swordCheck("replacement_drops_guard_and_parry",
+                !guard.isGuarding() && guard.parryWindowEndTick() < 0 && guard.guardStack().isEmpty());
+        probe.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, sword);
+        guard.setGuarding(true);
+        guard.setGuardEquipment(sword, ShieldType.SWORD);
+        sword.set(ModDataComponents.GUARD_PROFILE.get(),
+                new GuardProfile(ShieldType.MEDIUM, 0.4F, 0, 0.0F, 0.0F, true));
+        ServerGuardInputHandler.reconcileEquipment(probe, guard, probe.level().getGameTime());
+        swordCheck("profile_type_change_drops_sword_guard", !guard.isGuarding());
+        SyncThrottler.clear(probe.getUUID());
+    }
+
+    private static void offhandSwordCases(ServerPlayer probe, ItemStack sword) {
+        var main = net.minecraft.world.InteractionHand.MAIN_HAND;
+        var off = net.minecraft.world.InteractionHand.OFF_HAND;
+        probe.setItemInHand(main, ItemStack.EMPTY);
+        probe.setItemInHand(off, sword);
+        var guard = probe.getData(ModAttachments.GUARD_STATE.get());
+        var stamina = probe.getData(ModAttachments.STAMINA.get());
+        stamina.setStamina(Config.maxStamina());
+        ServerGuardInputHandler.handle(probe, new com.example.blockmod.network.GuardInputPayload(true, 0));
+        swordCheck("offhand_input_enters_guard", guard.isGuarding() && guard.guardHand() == off
+                && guard.guardStack() == sword && SyncThrottler.guardPoseStack(probe, probe.getData(ModAttachments.GUARD_STATE.get()).guardHand()) == sword);
+
+        var buffer = new net.minecraft.network.RegistryFriendlyByteBuf(Unpooled.buffer(), probe.registryAccess(),
+                net.neoforged.neoforge.network.connection.ConnectionType.NEOFORGE);
+        try {
+            var payload = new GuardPoseSyncPayload(probe.getUUID(), ItemStack.EMPTY, sword, false);
+            GuardPoseSyncPayload.STREAM_CODEC.encode(buffer, payload);
+            var decoded = GuardPoseSyncPayload.STREAM_CODEC.decode(buffer);
+            swordCheck("offhand_pose_codec_roundtrip", decoded.playerId().equals(probe.getUUID())
+                    && decoded.mainHand().isEmpty() && ItemStack.isSameItemSameComponents(decoded.offHand(), sword));
+        } finally {
+            buffer.release();
+        }
+
+        var zombie = EntityType.ZOMBIE.create(probe.level());
+        probe.moveTo(probe.getX(), probe.getY(), probe.getZ(), 0.0F, 0.0F);
+        zombie.moveTo(probe.getX(), probe.getY(), probe.getZ() + 1.0, 0.0F, 0.0F);
+        float health = probe.getHealth();
+        int durability = sword.getDamageValue();
+        boolean hit = zombie.doHurtTarget(probe);
+        swordCheck("offhand_parry_counters_without_cost", !hit && probe.getHealth() == health
+                && stamina.stamina() == Config.maxStamina() && sword.getDamageValue() == durability
+                && zombie.hasEffect(ModEffects.STUN));
+        zombie.removeEffect(ModEffects.STUN);
+        probe.invulnerableTime = 0;
+        hit = zombie.doHurtTarget(probe);
+        swordCheck("offhand_block_costs_stamina_without_durability", !hit && probe.getHealth() == health
+                && stamina.stamina() < Config.maxStamina() && sword.getDamageValue() == durability);
+        zombie.discard();
+
+        stamina.setStamina(0.0F);
+        swordCheck("offhand_depletion_lowers_pose", guard.isGuarding() && SyncThrottler.guardPoseStack(probe, probe.getData(ModAttachments.GUARD_STATE.get()).guardHand()).isEmpty());
+        stamina.setStamina(Config.maxStamina());
+        swordCheck("offhand_recovery_restores_pose", SyncThrottler.guardPoseStack(probe, probe.getData(ModAttachments.GUARD_STATE.get()).guardHand()) == sword);
+        probe.setItemInHand(off, ItemStack.EMPTY);
+        probe.setItemInHand(main, sword);
+        ServerGuardInputHandler.reconcileEquipment(probe, guard, probe.level().getGameTime());
+        swordCheck("hand_swap_drops_guard", !guard.isGuarding() && guard.parryWindowEndTick() < 0);
+    }
+
+    private static void swordCheck(String name, boolean passed) {
+        log(new Result("sword_" + name, passed, "true", Boolean.toString(passed)));
+    }
+
+    /** Full server input, damage, sync and equipment lifecycle for every two-hand pairing. */
+    private static void dualGuardCases(ServerLevel level, net.minecraft.world.item.Item mainItem,
+            net.minecraft.world.item.Item offItem, String name) {
+        var probe = new GuardProbe(level, new GameProfile(UUID.randomUUID(), "M2Dual_" + name));
+        var main = net.minecraft.world.InteractionHand.MAIN_HAND;
+        var off = net.minecraft.world.InteractionHand.OFF_HAND;
+        var mainStack = new ItemStack(mainItem);
+        var offStack = new ItemStack(offItem);
+        probe.setItemInHand(main, mainStack);
+        probe.setItemInHand(off, offStack);
+        var guard = probe.getData(ModAttachments.GUARD_STATE.get());
+        var stamina = probe.getData(ModAttachments.STAMINA.get());
+        long now = level.getGameTime();
+        stamina.setStamina(Config.maxStamina());
+        ServerGuardInputHandler.handlePowerGuard(probe, true);
+        dualCheck(name, "requires_guard", !guard.isPowerGuarding());
+        ServerGuardInputHandler.handle(probe, new com.example.blockmod.network.GuardInputPayload(true, 0));
+        ServerGuardInputHandler.handlePowerGuard(probe, true);
+        dualCheck(name, "input_activates_both", guard.isPowerGuarding()
+                && SyncThrottler.guardPoseStack(probe, main) == mainStack
+                && SyncThrottler.guardPoseStack(probe, off) == offStack);
+        var buffer = new net.minecraft.network.RegistryFriendlyByteBuf(Unpooled.buffer(), probe.registryAccess(),
+                net.neoforged.neoforge.network.connection.ConnectionType.NEOFORGE);
+        try {
+            var payload = new GuardPoseSyncPayload(probe.getUUID(), mainStack, offStack, true);
+            GuardPoseSyncPayload.STREAM_CODEC.encode(buffer, payload);
+            var decoded = GuardPoseSyncPayload.STREAM_CODEC.decode(buffer);
+            dualCheck(name, "pose_codec", decoded.powerGuarding()
+                    && ItemStack.isSameItemSameComponents(decoded.mainHand(), mainStack)
+                    && ItemStack.isSameItemSameComponents(decoded.offHand(), offStack));
+        } finally {
+            buffer.release();
+        }
+        for (int i = 0; i < 20; i++) PlayerTickHandler.tick(probe);
+        float drain = Config.maxStamina() * Config.pgStaminaDrainPercent() / 100.0F + Config.pgStaminaDrainFlat();
+        dualCheck(name, "drains_once_no_regen", Math.abs(stamina.stamina() - (Config.maxStamina() - drain)) < 0.001F);
+        guard.setParryWindowEndTick(-1L);
+        var zombie = EntityType.ZOMBIE.create(level);
+        probe.moveTo(0.0, 100.0, 0.0, 0.0F, 0.0F);
+        probe.setYHeadRot(0.0F);
+        zombie.moveTo(0.0, 100.0, 1.0, 0.0F, 0.0F);
+        float health = probe.getHealth();
+        float before = stamina.stamina();
+        float mainGb = mainItem == Items.SHIELD ? 0.4F : 0.2F;
+        float offGb = offItem == Items.SHIELD ? 0.4F : 0.2F;
+        float pfix = "always_pvp".equals(Config.pvpMode()) ? Config.pfixPvp() : Config.pfixPve();
+        float expectedCost = com.example.blockmod.logic.GuardFormulas.staminaCost(5.0F,
+                1.0F - (1.0F - mainGb) * (1.0F - offGb), pfix);
+        boolean hit = probe.hurt(probe.damageSources().mobAttack(zombie), 5.0F);
+        dualCheck(name, "merged_damage_cost", !hit && probe.getHealth() == health
+                && Math.abs(before - stamina.stamina() - expectedCost) < 0.001F);
+        dualCheck(name, "shield_only_durability", mainStack.getDamageValue() == (mainItem == Items.SHIELD ? 6 : 0)
+                && offStack.getDamageValue() == (offItem == Items.SHIELD ? 6 : 0));
+        zombie.discard();
+
+        var secondaryHand = guard.guardHand() == main ? off : main;
+        var secondary = probe.getItemInHand(secondaryHand);
+        probe.setItemInHand(secondaryHand, secondary.copy());
+        ServerGuardInputHandler.reconcileEquipment(probe, guard, now);
+        dualCheck(name, "replacement_ends_pg_keeps_primary", guard.isGuarding() && !guard.isPowerGuarding()
+                && guard.secondaryGuardStack().isEmpty() && guard.powerGuardReadyTick() == now + Config.powerGuardCooldownTicks());
+        ServerGuardInputHandler.handlePowerGuard(probe, true);
+        dualCheck(name, "cooldown_blocks_reactivation", !guard.isPowerGuarding());
+        guard.setPowerGuardReadyTick(-1L);
+        stamina.setStamina(0.0F);
+        ServerGuardInputHandler.handlePowerGuard(probe, true);
+        dualCheck(name, "depletion_blocks_reactivation", !guard.isPowerGuarding());
+        stamina.setStamina(0.01F);
+        ServerGuardInputHandler.handlePowerGuard(probe, true);
+        PlayerTickHandler.tick(probe);
+        dualCheck(name, "drain_depletion_ends_pg", guard.isGuarding() && !guard.isPowerGuarding());
+        ServerGuardInputHandler.handle(probe, new com.example.blockmod.network.GuardInputPayload(false, 0));
+        SyncThrottler.clear(probe.getUUID());
+    }
+
+    private static void dualCheck(String pairing, String name, boolean passed) {
+        log(new Result("dual_" + pairing + "_" + name, passed, "true", Boolean.toString(passed)));
     }
 
     /**
@@ -265,6 +507,9 @@ public final class M2Verify {
         g.setGuarding(true);
         g.setPowerGuarding(false);
         g.setWasDepleted(false);
+        var equipment = GuardEquipmentResolver.resolve(probe);
+        g.setGuardHand(equipment.hand());
+        g.setGuardEquipment(equipment.stack(), equipment.profile().type());
         float full = probe.getHealth();
         boolean blockedLanded = zombie.doHurtTarget(probe);
         log(new Result("stun 防御: 控制组格挡生效",
@@ -292,7 +537,9 @@ public final class M2Verify {
         StaminaData s = player.getData(com.example.blockmod.registry.ModAttachments.STAMINA.get());
         GuardStateData g = player.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
         s.setStamina(start);
-        s.setLastEventTick(lastEventTick);
+        // A new world starts at tick zero; keep the out-of-delay fixture in its past.
+        s.setLastEventTick(player.level().getGameTime()
+                - Math.round(Config.regenDelaySeconds() * 20.0F) - 1L + lastEventTick);
         g.setGuarding(guarding);
         g.setPowerGuarding(powerGuarding);
         g.setWasDepleted(start <= 0f);

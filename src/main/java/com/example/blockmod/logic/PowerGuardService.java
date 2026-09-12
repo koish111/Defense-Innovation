@@ -3,6 +3,7 @@ package com.example.blockmod.logic;
 import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.config.Config;
 import com.example.blockmod.data.ShieldType;
+import com.example.blockmod.data.GuardProfile;
 import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
 import com.example.blockmod.registry.ModSounds;
@@ -10,11 +11,13 @@ import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
 
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 
 import org.jetbrains.annotations.Nullable;
 
 /**
- * FR-16 / T-37: power guard (great shields). Activation arms
+ * FR-16 / T-37: power guard with two guardable items or one great shield. Activation arms
  * {@code GuardStateData#powerGuarding}; the per-tick effects (drain, regen
  * suspension, jump clamp, gb bonus) live in the tick pipeline (§5.3.1 step 1 /
  * §5.7). Deactivation: key release, guard exit (right-click), item switch, or
@@ -41,8 +44,7 @@ public final class PowerGuardService {
             return; // designer ruling 2026-09-07: 3s lockout after PG ends
         }
         if (!guardState.isGuarding()) {
-            return; // designer ruling 2026-09-07: PG triggers only while the guard holds
-                    // (right-click first, then the PG key). Expected input pattern, stay silent.
+            return; // The client sends guard entry before the combined-key intent.
         }
         GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
         String reject = validate(player, equipment, guardState);
@@ -52,6 +54,11 @@ public final class PowerGuardService {
             return; // E-11/E-19
         }
         guardState.setPowerGuarding(true);
+        InteractionHand secondaryHand = guardState.guardHand() == InteractionHand.MAIN_HAND
+                ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+        GuardProfile secondaryProfile = GuardEquipmentResolver.profileInHand(player, secondaryHand, Config.swordBlocking());
+        guardState.setSecondaryGuardEquipment(secondaryProfile == null ? ItemStack.EMPTY : player.getItemInHand(secondaryHand),
+                secondaryProfile);
         ModSounds.play(player, ModSounds.FORTIFIED_GUARD, 0.9f, 0.6f);
         SyncThrottler.forceSync(player);
         BlockModLogger.info("POWER_GUARD", "action", "on", "player", player.getGameProfile().getName());
@@ -70,13 +77,17 @@ public final class PowerGuardService {
 
     /** Single funnel for every PG exit: disarm state, anchor cooldown, visualise, sync, log. */
     private static void deactivate(ServerPlayer player, GuardStateData guardState, String reason, long now) {
+        ItemStack secondaryStack = guardState.secondaryGuardStack();
         guardState.setPowerGuarding(false);
         int cooldown = Config.powerGuardCooldownTicks();
         if (cooldown > 0) {
             guardState.setPowerGuardReadyTick(now + cooldown);
             GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
-            if (equipment != null && equipment.profile().type() == ShieldType.GREAT) {
+            if (equipment != null) {
                 player.getCooldowns().addCooldown(equipment.stack().getItem(), cooldown);
+            }
+            if (!secondaryStack.isEmpty()) {
+                player.getCooldowns().addCooldown(secondaryStack.getItem(), cooldown);
             }
         }
         SyncThrottler.forceSync(player);
@@ -87,8 +98,13 @@ public final class PowerGuardService {
     @Nullable
     private static String validate(ServerPlayer player, @Nullable GuardEquipmentResolver.GuardEquipment equipment,
             GuardStateData guardState) {
-        if (equipment == null || equipment.profile().type() != ShieldType.GREAT) {
-            return "not a great shield"; // E-11
+        if (equipment == null || equipment.hand() != guardState.guardHand()
+                || equipment.stack() != guardState.guardStack()
+                || equipment.profile().type() != guardState.guardType()) {
+            return "guard equipment changed";
+        }
+        if (!GuardEquipmentResolver.canPowerGuard(player, Config.swordBlocking())) {
+            return "needs two guardable items or one great shield";
         }
         StaminaData stamina = player.getData(ModAttachments.STAMINA.get());
         if (stamina.isDepleted()) {
@@ -100,13 +116,27 @@ public final class PowerGuardService {
         return null;
     }
 
+    @Nullable
+    public static GuardProfile secondaryProfile(ServerPlayer player, GuardStateData guardState) {
+        GuardProfile profile = guardState.secondaryGuardProfile();
+        if (!guardState.isGuarding() || !guardState.isPowerGuarding() || profile == null) return null;
+        InteractionHand hand = guardState.guardHand() == InteractionHand.MAIN_HAND
+                ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+        ItemStack stack = guardState.secondaryGuardStack();
+        return player.getItemInHand(hand) == stack && !stack.isEmpty()
+                && GuardEquipmentResolver.matchesProfile(stack, profile, Config.swordBlocking()) ? profile : null;
+    }
+
+    /** Losing either captured item ends the dual hold; a valid primary may keep normal guarding. */
+    public static void reconcileEquipment(ServerPlayer player, GuardStateData guardState, long now) {
+        if (guardState.isPowerGuarding() && guardState.secondaryGuardProfile() != null
+                && secondaryProfile(player, guardState) == null) {
+            deactivate(player, guardState, "secondary equipment changed", now);
+        }
+    }
+
     /** Disarms the state (guard exit, item switch paths call this). */
     public static void disarm(ServerPlayer player, GuardStateData guardState) {
-        if (guardState.isPowerGuarding()) {
-            guardState.setPowerGuarding(false);
-            SyncThrottler.forceSync(player);
-            BlockModLogger.info("POWER_GUARD", "action", "off", "player", player.getGameProfile().getName(),
-                    "reason", "guard exit");
-        }
+        disarm(player, guardState, player.level().getGameTime());
     }
 }

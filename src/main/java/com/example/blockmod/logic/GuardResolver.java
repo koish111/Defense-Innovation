@@ -177,7 +177,9 @@ public final class GuardResolver {
         GuardEquipment equipment = ctx.equipment();
 
         // 1-3. effective gb, pfix, cost (formula clamps internally per §5.4.3 step 4)
-        float effectiveGb = EffectiveStrengthResolver.resolve(equipment.profile(), guardState.isPowerGuarding());
+        var secondaryProfile = PowerGuardService.secondaryProfile(ctx.player(), guardState);
+        var secondaryStack = guardState.secondaryGuardStack();
+        float effectiveGb = EffectiveStrengthResolver.resolve(equipment.profile(), secondaryProfile, guardState.isPowerGuarding());
         float pfix = resolvePfix(ctx.source());
         float cost = GuardFormulas.staminaCost(ctx.damage(), effectiveGb, pfix);
 
@@ -189,6 +191,9 @@ public final class GuardResolver {
 
         // 7. durability (floor(dmg)+1, threshold-gated, sword-exempt)
         DurabilityService.consume(ctx.player(), equipment, ctx.damage());
+        if (secondaryProfile != null) {
+            DurabilityService.consume(ctx.player(), secondaryStack, secondaryProfile, ctx.damage());
+        }
 
         // 8. same-tick depletion: the blocking hit itself stays blocked (FR-04 acceptance 6)
         if (StaminaService.depletionEdgeFlipped(guardState, stamina.stamina())) {
@@ -254,7 +259,10 @@ public final class GuardResolver {
         }
 
         boolean guarding() {
-            return guardState.isGuarding();
+            return guardState.isGuarding() && equipment != null
+                    && equipment.hand() == guardState.guardHand()
+                    && equipment.stack() == guardState.guardStack()
+                    && equipment.profile().type() == guardState.guardType();
         }
 
         boolean canDefend() {
