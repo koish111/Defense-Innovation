@@ -1,0 +1,39 @@
+{
+	"parent": "blockmod:item/wooden_buckler",
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [
+				45.0,
+				-25.0,
+				-0.0
+			],
+			"translation": [
+				-2.3943,
+				-0.8023,
+				-1.1579
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [
+				45.0,
+				-25.0,
+				0.0
+			],
+			"translation": [
+				-1.8952,
+				-0.0209,
+				-1.4393
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		}
+	}
+}

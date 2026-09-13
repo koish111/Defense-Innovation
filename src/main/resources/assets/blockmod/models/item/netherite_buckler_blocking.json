@@ -1,0 +1,39 @@
+{
+	"parent": "blockmod:item/netherite_buckler",
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [
+				45.0,
+				-25.0,
+				-0.0
+			],
+			"translation": [
+				-2.6056,
+				-1.1227,
+				-0.8375
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [
+				45.0,
+				-25.0,
+				0.0
+			],
+			"translation": [
+				-2.1065,
+				-0.3413,
+				-1.1188
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		}
+	}
+}
