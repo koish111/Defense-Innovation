@@ -285,4 +285,28 @@ class GuardRulesM3Test {
         assertEquals(0.95f, GuardRules.effectiveStrength(0.94f, 0.80f, true, 0.01f, 0.95f), 1e-6f);
         assertEquals(0.01f, GuardRules.effectiveStrength(0.0f, 0.0f, false, 0.01f, 0.95f), 1e-6f);
     }
+
+    // ------------------------------------------------------------------
+    // guard grace window (ruling 2026-09-14: anti multi-hit drain)
+
+    @Test
+    @DisplayName("grace_窗口内: now < end → 免费结算")
+    void graceInsideWindow() {
+        assertTrue(GuardRules.inGuardGrace(100L, 115L));
+        assertTrue(GuardRules.inGuardGrace(114L, 115L));
+    }
+
+    @Test
+    @DisplayName("grace_边界与过期: now == end 及之后 → 正常扣费")
+    void graceExpired() {
+        assertFalse(GuardRules.inGuardGrace(115L, 115L));
+        assertFalse(GuardRules.inGuardGrace(200L, 115L));
+    }
+
+    @Test
+    @DisplayName("grace_无窗口: -1 与 0 表示未开窗 → 正常扣费")
+    void graceNoWindow() {
+        assertFalse(GuardRules.inGuardGrace(100L, -1L));
+        assertFalse(GuardRules.inGuardGrace(100L, 0L));
+    }
 }

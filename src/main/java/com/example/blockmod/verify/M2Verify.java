@@ -128,6 +128,9 @@ public final class M2Verify {
         BlockModLogger.info("M2VERIFY", "note", "=== guard interaction lockout (FR-24) ===");
         guardInteractionCases(level, new GuardProbe(level,
                 new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b5"), "M2InteractProbe")));
+        BlockModLogger.info("M2VERIFY", "note", "=== guard grace window (2026-09-14) ===");
+        guardGraceCases(level, new GuardProbe(level,
+                new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b7"), "M2GraceProbe")));
         swordBlockingCases(new GuardProbe(level,
                 new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b6"), "M2SwordProbe")));
         // 2026-09-13 ruling (mainhand-lead): Power Guard requires a great shield
@@ -623,6 +626,73 @@ public final class M2Verify {
         g.setGuarding(false);
         probe.getInventory().offhand.set(0, ItemStack.EMPTY);
         zombie.discard();
+    }
+
+    /**
+     * Guard grace window (ruling 2026-09-14): a zombie-bites-frontally pair
+     * attacks a guarding {@link GuardProbe} several times in the same tick —
+     * the multi-hit pattern (slime chains, pufferfish poison) that used to
+     * drain one full stamina cost per hit because a cancelled damage event
+     * never sets vanilla's invulnerable frames. First hit pays and opens the
+     * window, follow-up hits inside it settle for free (damage still blocked,
+     * no stamina, no regen-delay reset), an expired window pays again, and
+     * dropping the guard clears the window.
+     */
+    private static void guardGraceCases(ServerLevel level, GuardProbe probe) {
+        BlockPos spawn = level.getSharedSpawnPos();
+        double x = spawn.getX() + 6.5, z = spawn.getZ() + 2.5;
+        double y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) x, (int) z);
+        probe.moveTo(x, y, z, 0.0f, 0.0f);
+        probe.setYRot(0.0f);
+        probe.setYHeadRot(0.0f);
+        probe.getInventory().offhand.set(0, new ItemStack(Items.SHIELD));
+        StaminaData s = probe.getData(com.example.blockmod.registry.ModAttachments.STAMINA.get());
+        GuardStateData g = probe.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
+        g.setGuarding(true);
+        g.setPowerGuarding(false);
+        g.setWasDepleted(false);
+        g.setGuardGraceEndTick(-1L);
+        var equipment = GuardEquipmentResolver.resolve(probe);
+        g.setGuardHand(equipment.hand());
+        g.setGuardEquipment(equipment.stack(), equipment.profile().type());
+
+        Zombie swarm = EntityType.ZOMBIE.create(level);
+        swarm.moveTo(x, y, z + 1.0, 0.0f, 0.0f);
+
+        long now = probe.level().getGameTime();
+        s.setStamina(20.0f);
+        probe.invulnerableTime = 0;
+        boolean firstLanded = swarm.doHurtTarget(probe);
+        float firstCost = 20.0f - s.stamina();
+        log(new Result("guard 宽限: 首跳扣费并开窗",
+                !firstLanded && firstCost > 0f
+                        && g.guardGraceEndTick() == now + Config.guardGraceTicks(),
+                "扣费+开窗" + Config.guardGraceTicks() + "t",
+                String.format("landed=%s cost=%.2f graceEnd=%d", firstLanded, firstCost, g.guardGraceEndTick())));
+
+        float stAfterFirst = s.stamina();
+        long lastEvent = s.lastEventTick();
+        boolean secondLanded = swarm.doHurtTarget(probe);
+        log(new Result("guard 宽限: 窗口内连击免费",
+                !secondLanded && s.stamina() == stAfterFirst && s.lastEventTick() == lastEvent,
+                "零消耗+延迟不刷新",
+                String.format("landed=%s st=%.2f lastEvent=%d", secondLanded, s.stamina(), s.lastEventTick())));
+
+        g.setGuardGraceEndTick(now - 1L);
+        probe.invulnerableTime = 0;
+        float stBeforeThird = s.stamina();
+        boolean thirdLanded = swarm.doHurtTarget(probe);
+        log(new Result("guard 宽限: 过期后重新扣费",
+                !thirdLanded && s.stamina() < stBeforeThird && s.lastEventTick() == now,
+                "再次扣费+刷延迟",
+                String.format("landed=%s st=%.2f", thirdLanded, s.stamina())));
+
+        g.setGuarding(false);
+        log(new Result("guard 宽限: 收盾清窗", g.guardGraceEndTick() == -1L, "-1",
+                String.valueOf(g.guardGraceEndTick())));
+
+        probe.getInventory().offhand.set(0, ItemStack.EMPTY);
+        swarm.discard();
     }
 
     /** Drives N ticks with lastEventTick fixed in the past (no delay). */

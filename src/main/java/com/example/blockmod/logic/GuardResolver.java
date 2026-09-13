@@ -82,15 +82,34 @@ public final class GuardResolver {
                 return;
             }
             if (result == GuardRules.RESULT_GUARDED) {
+                // Ruling 2026-09-14: the first guarded hit after a PAID settlement
+                // opens a grace window; hits landing inside it are cancelled but
+                // settle for free — no stamina, no durability, no regen-delay
+                // reset, no great-shield shove, no cue spam. Multi-hit damage
+                // (slime chains, pufferfish poison) must not drain one full cost
+                // per tick.
+                boolean freeSettlement = Config.guardGraceTicks() > 0
+                        && GuardRules.inGuardGrace(player.level().getGameTime(),
+                                ctx.guardState().guardGraceEndTick());
                 REENTRANCY.add(player.getUUID());
                 try {
                     event.setCanceled(true);
-                    applyGuardCost(ctx);
+                    if (freeSettlement) {
+                        if (Config.verboseLogging()) {
+                            BlockModLogger.info("GUARD", "result", "GRACE", "player",
+                                    player.getGameProfile().getName(), "damage", ctx.damage());
+                        }
+                    } else {
+                        applyGuardCost(ctx);
+                    }
                 } finally {
                     REENTRANCY.remove(player.getUUID());
                 }
                 applyKnockbackReduction(ctx);
-                GreatshieldService.onBlocked(ctx.player(), ctx.source(), ctx.equipment(), ctx.guardState(), ctx.damage());
+                if (!freeSettlement) {
+                    GreatshieldService.onBlocked(ctx.player(), ctx.source(), ctx.equipment(),
+                            ctx.guardState(), ctx.damage());
+                }
             }
         } catch (Throwable t) {
             // E-24: a guard bug must never make a player invulnerable — let the damage through.
@@ -188,6 +207,10 @@ public final class GuardResolver {
 
         // 6. reset the regen delay
         stamina.setLastEventTick(ctx.player().level().getGameTime());
+
+        // 6b. ruling 2026-09-14: open the grace window — paid settlement buys
+        // guard_grace_ticks of free settlements against multi-hit damage.
+        guardState.setGuardGraceEndTick(ctx.player().level().getGameTime() + Config.guardGraceTicks());
 
         // 7. durability (floor(dmg)+1, threshold-gated, sword-exempt)
         DurabilityService.consume(ctx.player(), equipment, ctx.damage());
