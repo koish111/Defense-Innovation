@@ -140,12 +140,10 @@ class GuardRulesM3Test {
     }
 
     @Test
-    @DisplayName("Two guardable items can power guard without a great shield")
-    void dualEquipmentCanPowerGuard() {
-        assertTrue(GuardRules.powerGuardEquipmentAllowed(false, true));
-        assertTrue(GuardRules.powerGuardEquipmentAllowed(true, true));
-        assertTrue(GuardRules.powerGuardEquipmentAllowed(true, false));
-        assertFalse(GuardRules.powerGuardEquipmentAllowed(false, false));
+    @DisplayName("Power Guard requires a great shield as the primary guard item (2026-09-13 ruling)")
+    void greatShieldRequiredForPowerGuard() {
+        assertTrue(GuardRules.powerGuardEquipmentAllowed(true));   // great shield primary: single or dual lead
+        assertFalse(GuardRules.powerGuardEquipmentAllowed(false)); // sword / buckler / medium primary
     }
 
     @Test

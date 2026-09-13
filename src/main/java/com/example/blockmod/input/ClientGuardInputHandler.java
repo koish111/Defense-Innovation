@@ -6,7 +6,10 @@ import com.example.blockmod.client.ClientGuardState;
 import com.example.blockmod.logic.GuardEquipmentResolver;
 import com.example.blockmod.logic.GuardRules;
 import com.example.blockmod.network.GuardInputPayload;
+import com.example.blockmod.registry.ModDataComponents;
 import com.example.blockmod.registry.ModEffects;
+
+import java.util.Objects;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -86,7 +89,7 @@ public final class ClientGuardInputHandler {
             return;
         }
 
-        if (sentState && activeGuardStack(player) != sentGuardStack) {
+        if (sentState && !sameGuardEquipment(activeGuardStack(player), sentGuardStack)) {
             desireGuard = false;
             guardUseAccepted = false;
         }
@@ -201,6 +204,22 @@ public final class ClientGuardInputHandler {
             case GuardRules.SLOT_OFFHAND -> player.getOffhandItem();
             default -> ItemStack.EMPTY;
         };
+    }
+
+    /**
+     * Guard-relevant equipment identity: item, count and the {@code guard_profile}
+     * component. Deliberately ignores the damage component — a blocked hit applies
+     * shield durability on the server and the slot sync then REPLACES the client's
+     * ItemStack instance, so a reference (or full-component) comparison would wrongly
+     * cancel a live guard after the first blocked hit (2026-09-13 ruling). Damage,
+     * enchantments and display data never change guard behaviour; the server remains
+     * authoritative for profile-level changes via its own reconciliation.
+     */
+    private static boolean sameGuardEquipment(ItemStack current, ItemStack sent) {
+        return current.getItem() == sent.getItem()
+                && current.getCount() == sent.getCount()
+                && Objects.equals(current.get(ModDataComponents.GUARD_PROFILE.get()),
+                        sent.get(ModDataComponents.GUARD_PROFILE.get()));
     }
 
     @SubscribeEvent
