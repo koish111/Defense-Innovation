@@ -18,6 +18,7 @@ import com.example.blockmod.network.SyncThrottler;
 import com.example.blockmod.registry.ModAttachments;
 import com.example.blockmod.registry.ModDataComponents;
 import com.example.blockmod.registry.ModEffects;
+import com.example.blockmod.registry.ModItems;
 import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
 
@@ -26,9 +27,11 @@ import io.netty.buffer.Unpooled;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Difficulty;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Pig;
@@ -36,10 +39,12 @@ import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.scores.PlayerTeam;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.util.FakePlayer;
+import net.neoforged.neoforge.event.entity.living.EffectParticleModificationEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -112,6 +117,8 @@ public final class M2Verify {
         log(new Result("edge_无跳变", fired == 0, "0 fires", fired + " fires"));
         BlockModLogger.info("M2VERIFY", "note", "=== stun freeze (FR-05) ===");
         stunFreezeCases(level);
+        BlockModLogger.info("M2VERIFY", "note", "=== stun presentation (2026-09-13) ===");
+        stunGlowCases(level);
         BlockModLogger.info("M2VERIFY", "note", "=== stun defense gate (FR-05) ===");
         stunDefenseCases(level, new GuardProbe(level,
                 new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b3"), "M2GuardProbe")));
@@ -123,10 +130,18 @@ public final class M2Verify {
                 new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b5"), "M2InteractProbe")));
         swordBlockingCases(new GuardProbe(level,
                 new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b6"), "M2SwordProbe")));
-        dualGuardCases(level, Items.IRON_SWORD, Items.DIAMOND_SWORD, "swords");
-        dualGuardCases(level, Items.IRON_SWORD, Items.SHIELD, "sword_shield");
-        dualGuardCases(level, Items.SHIELD, Items.IRON_SWORD, "shield_sword");
-        dualGuardCases(level, Items.SHIELD, Items.SHIELD, "shields");
+        // 2026-09-13 ruling (mainhand-lead): Power Guard requires a great shield
+        // leading the hold — the mainhand guard item decides, a sole offhand great
+        // shield keeps PG. Every pairing whose mainhand guard item is not a great
+        // shield must REJECT the Ctrl intent (guard-only path), sword mainhand +
+        // great shield offhand included; the great-shield-mainhand pairing keeps
+        // the full PG lifecycle coverage.
+        dualGuardCases(level, Items.IRON_SWORD, Items.DIAMOND_SWORD, "swords", false);
+        dualGuardCases(level, Items.IRON_SWORD, Items.SHIELD, "sword_shield", false);
+        dualGuardCases(level, Items.SHIELD, Items.IRON_SWORD, "shield_sword", false);
+        dualGuardCases(level, Items.SHIELD, Items.SHIELD, "shields", false);
+        dualGuardCases(level, Items.IRON_SWORD, ModItems.WOODEN_GREAT_SHIELD.get(), "sword_great", false);
+        dualGuardCases(level, ModItems.IRON_GREAT_SHIELD.get(), Items.SHIELD, "great_shield", true);
 
         BlockModLogger.info("M2VERIFY", "note", "=== complete ===");
     }
@@ -274,9 +289,15 @@ public final class M2Verify {
         log(new Result("sword_" + name, passed, "true", Boolean.toString(passed)));
     }
 
-    /** Full server input, damage, sync and equipment lifecycle for every two-hand pairing. */
+    /**
+     * Full server input, damage, sync and equipment lifecycle for every two-hand
+     * pairing. Under the 2026-09-13 mainhand-lead Power Guard ruling every pairing
+     * whose mainhand guard item is not a great shield must REJECT the Ctrl intent
+     * (guard-only path) — sword mainhand + great shield offhand included; only the
+     * great-shield-mainhand pairing keeps the full PG lifecycle coverage.
+     */
     private static void dualGuardCases(ServerLevel level, net.minecraft.world.item.Item mainItem,
-            net.minecraft.world.item.Item offItem, String name) {
+            net.minecraft.world.item.Item offItem, String name, boolean powerGuard) {
         var probe = new GuardProbe(level, new GameProfile(UUID.randomUUID(), "M2Dual_" + name));
         var main = net.minecraft.world.InteractionHand.MAIN_HAND;
         var off = net.minecraft.world.InteractionHand.OFF_HAND;
@@ -292,9 +313,13 @@ public final class M2Verify {
         dualCheck(name, "requires_guard", !guard.isPowerGuarding());
         ServerGuardInputHandler.handle(probe, new com.example.blockmod.network.GuardInputPayload(true, 0));
         ServerGuardInputHandler.handlePowerGuard(probe, true);
-        dualCheck(name, "input_activates_both", guard.isPowerGuarding()
-                && SyncThrottler.guardPoseStack(probe, main) == mainStack
-                && SyncThrottler.guardPoseStack(probe, off) == offStack);
+        if (powerGuard) {
+            dualCheck(name, "input_activates_both", guard.isPowerGuarding()
+                    && SyncThrottler.guardPoseStack(probe, main) == mainStack
+                    && SyncThrottler.guardPoseStack(probe, off) == offStack);
+        } else {
+            dualCheck(name, "input_rejects_pg", !guard.isPowerGuarding());
+        }
         var buffer = new net.minecraft.network.RegistryFriendlyByteBuf(Unpooled.buffer(), probe.registryAccess(),
                 net.neoforged.neoforge.network.connection.ConnectionType.NEOFORGE);
         try {
@@ -307,9 +332,11 @@ public final class M2Verify {
         } finally {
             buffer.release();
         }
-        for (int i = 0; i < 20; i++) PlayerTickHandler.tick(probe);
-        float drain = Config.maxStamina() * Config.pgStaminaDrainPercent() / 100.0F + Config.pgStaminaDrainFlat();
-        dualCheck(name, "drains_once_no_regen", Math.abs(stamina.stamina() - (Config.maxStamina() - drain)) < 0.001F);
+        if (powerGuard) {
+            for (int i = 0; i < 20; i++) PlayerTickHandler.tick(probe);
+            float drain = Config.maxStamina() * Config.pgStaminaDrainPercent() / 100.0F + Config.pgStaminaDrainFlat();
+            dualCheck(name, "drains_once_no_regen", Math.abs(stamina.stamina() - (Config.maxStamina() - drain)) < 0.001F);
+        }
         guard.setParryWindowEndTick(-1L);
         var zombie = EntityType.ZOMBIE.create(level);
         probe.moveTo(0.0, 100.0, 0.0, 0.0F, 0.0F);
@@ -317,18 +344,38 @@ public final class M2Verify {
         zombie.moveTo(0.0, 100.0, 1.0, 0.0F, 0.0F);
         float health = probe.getHealth();
         float before = stamina.stamina();
-        float mainGb = mainItem == Items.SHIELD ? 0.4F : 0.2F;
-        float offGb = offItem == Items.SHIELD ? 0.4F : 0.2F;
         float pfix = "always_pvp".equals(Config.pvpMode()) ? Config.pfixPvp() : Config.pfixPve();
-        float expectedCost = com.example.blockmod.logic.GuardFormulas.staminaCost(5.0F,
-                1.0F - (1.0F - mainGb) * (1.0F - offGb), pfix);
-        boolean hit = probe.hurt(probe.damageSources().mobAttack(zombie), 5.0F);
+        // Vanilla Player#hurt scales mob damage by difficulty BEFORE the guard
+        // pipeline sees it (easy: min(d/2+1, d) — 5.0 arrives as 3.5). Mirror the
+        // scaling or every cost/durability expectation drifts.
+        float incoming = 5.0F;
+        float scaled = switch (level.getDifficulty()) {
+            case Difficulty.PEACEFUL -> 0.0F;
+            case Difficulty.EASY -> Math.min(incoming / 2.0F + 1.0F, incoming);
+            case Difficulty.HARD -> incoming * 3.0F / 2.0F;
+            default -> incoming;
+        };
+        // Mirror the GuardResolver damage path: primary profile + participating
+        // secondary (PG only), composed by EffectiveStrengthResolver.
+        var equipment = GuardEquipmentResolver.resolve(probe);
+        var secondaryProfile = com.example.blockmod.logic.PowerGuardService.secondaryProfile(probe, guard);
+        float expectedGb = com.example.blockmod.logic.EffectiveStrengthResolver.resolve(
+                equipment.profile(), secondaryProfile, guard.isPowerGuarding());
+        float expectedCost = com.example.blockmod.logic.GuardFormulas.staminaCost(scaled, expectedGb, pfix);
+        boolean hit = probe.hurt(probe.damageSources().mobAttack(zombie), incoming);
         dualCheck(name, "merged_damage_cost", !hit && probe.getHealth() == health
                 && Math.abs(before - stamina.stamina() - expectedCost) < 0.001F);
-        dualCheck(name, "shield_only_durability", mainStack.getDamageValue() == (mainItem == Items.SHIELD ? 6 : 0)
-                && offStack.getDamageValue() == (offItem == Items.SHIELD ? 6 : 0));
+        boolean mainIsSecondary = guard.guardHand() == off;
+        dualCheck(name, "shield_only_durability",
+                mainStack.getDamageValue() == durabilityFor(mainStack, scaled, !mainIsSecondary || powerGuard)
+                && offStack.getDamageValue() == durabilityFor(offStack, scaled, mainIsSecondary || powerGuard));
         zombie.discard();
 
+        if (!powerGuard) {
+            ServerGuardInputHandler.handle(probe, new com.example.blockmod.network.GuardInputPayload(false, 0));
+            SyncThrottler.clear(probe.getUUID());
+            return;
+        }
         var secondaryHand = guard.guardHand() == main ? off : main;
         var secondary = probe.getItemInHand(secondaryHand);
         probe.setItemInHand(secondaryHand, secondary.copy());
@@ -351,6 +398,13 @@ public final class M2Verify {
 
     private static void dualCheck(String pairing, String name, boolean passed) {
         log(new Result("dual_" + pairing + "_" + name, passed, "true", Boolean.toString(passed)));
+    }
+
+    /** Blocked damage at/above the threshold costs floor(dmg)+1 durability on a participating shield; swords never pay. */
+    private static int durabilityFor(ItemStack stack, float blockedDamage, boolean takesDamage) {
+        return takesDamage && blockedDamage >= Config.minDamageForDurabilityLoss()
+                && GuardEquipmentResolver.typeOf(stack, Config.swordBlocking()) != ShieldType.SWORD
+                ? net.minecraft.util.Mth.floor(blockedDamage) + 1 : 0;
     }
 
     /**
@@ -387,6 +441,7 @@ public final class M2Verify {
         for (int i = 0; i < 10; i++) pig.tick();
         double pushed = Math.hypot(pig.getX() - fx, pig.getZ() - fz);
         log(new Result("stun 冻结: 击退穿透外力生效", pushed > 0.05, ">0.05", String.format("%.4f", pushed)));
+        pig.removeEffect(ModEffects.STUN); // discard() skips effect cleanup — leave no team residue
         pig.discard();
 
         // 攻击: a stunned attacker deals no damage (hurt pipeline, server-authoritative)
@@ -404,8 +459,47 @@ public final class M2Verify {
                 String.format("landed=%s hp=%.1f", controlLanded, afterControl)));
         log(new Result("stun 攻击: 眩晕后伤害被取消", !stunnedLanded && victim.getHealth() == afterControl, "不扣血",
                 String.format("landed=%s hp=%.1f", stunnedLanded, victim.getHealth())));
+        zombie.removeEffect(ModEffects.STUN); // discard() skips effect cleanup — leave no team residue
         zombie.discard();
         victim.discard();
+    }
+
+    /**
+     * 2026-09-13 ruling (stun presentation): no world potion particles and a red
+     * glow outline. The glow flag and the RED scoreboard team land with the
+     * effect, the outline colour reads back through {@code getTeamColor()}, and
+     * removal restores the pre-stun team. The particle path is asserted by
+     * posting the real {@link EffectParticleModificationEvent} the effect-sync
+     * pipeline posts.
+     */
+    private static void stunGlowCases(ServerLevel level) {
+        var scoreboard = level.getScoreboard();
+        PlayerTeam prevTeam = scoreboard.getPlayerTeam("m2verify_prev");
+        if (prevTeam == null) {
+            prevTeam = scoreboard.addPlayerTeam("m2verify_prev");
+        }
+        prevTeam.setColor(ChatFormatting.GREEN);
+
+        Pig pig = EntityType.PIG.create(level);
+        scoreboard.addPlayerToTeam(pig.getScoreboardName(), prevTeam);
+        pig.addEffect(new MobEffectInstance(ModEffects.STUN, 40, 0, false, true, true), null);
+        boolean glowOn = pig.hasGlowingTag() && pig.isCurrentlyGlowing();
+        boolean teamRed = pig.getTeam() != null && pig.getTeam().getName().equals("blockmod_stun")
+                && pig.getTeamColor() == ChatFormatting.RED.getColor();
+        var particle = new EffectParticleModificationEvent(pig,
+                new MobEffectInstance(ModEffects.STUN, 40, 0, false, true, true));
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(particle);
+        log(new Result("stun 表现: 发光标志+红色描边队伍", glowOn && teamRed, "glow+RED",
+                String.format("glow=%s color=%s", glowOn, pig.getTeamColor())));
+        log(new Result("stun 表现: 药水粒子被隐藏", !particle.isVisible(), "invisible",
+                String.format("visible=%s", particle.isVisible())));
+        pig.removeEffect(ModEffects.STUN);
+        boolean restored = pig.getTeam() == prevTeam && !pig.hasGlowingTag() && !pig.isCurrentlyGlowing();
+        log(new Result("stun 表现: 移除后还原原队伍", restored, "green+无发光",
+                String.format("team=%s glow=%s", pig.getTeam() == prevTeam, pig.hasGlowingTag())));
+        scoreboard.removePlayerFromTeam(pig.getScoreboardName());
+        pig.discard();
+        scoreboard.removePlayerTeam(prevTeam);
     }
 
     /**

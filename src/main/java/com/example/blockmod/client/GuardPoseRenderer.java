@@ -95,13 +95,36 @@ public final class GuardPoseRenderer {
         poseArm(event, InteractionHand.OFF_HAND);
     }
 
+    /**
+     * True when the server-confirmed guard presents {@code stack} as a blocking
+     * shield for this player (either participating hand; swords excluded — they
+     * keep the classic sword pose). Drives the re-registered vanilla
+     * {@code blocking} model property for third-person presentation.
+     */
+    static boolean isConfirmedGuardShield(Player player, ItemStack stack) {
+        boolean inMain = player.getItemInHand(InteractionHand.MAIN_HAND) == stack
+                && shouldPose(player, InteractionHand.MAIN_HAND);
+        boolean inOff = player.getItemInHand(InteractionHand.OFF_HAND) == stack
+                && shouldPose(player, InteractionHand.OFF_HAND);
+        if (!inMain && !inOff) {
+            return false;
+        }
+        return GuardEquipmentResolver.typeOf(stack, ClientGuardState.swordBlocking()) != ShieldType.SWORD;
+    }
+
     private static void poseArm(RenderPlayerEvent.Pre event, InteractionHand hand) {
         if (!shouldPose(event.getEntity(), hand)) return;
         var model = event.getRenderer().getModel();
-        var pose = GuardEquipmentResolver.typeOf(event.getEntity().getItemInHand(hand), ClientGuardState.swordBlocking())
-                == ShieldType.SWORD ? SwordGuardArmPose.SWORD_BLOCK.getValue() : HumanoidModel.ArmPose.BLOCK;
+        var entity = event.getEntity();
+        var stackType = GuardEquipmentResolver.typeOf(entity.getItemInHand(hand), ClientGuardState.swordBlocking());
+        HumanoidModel.ArmPose pose;
+        if (stackType == ShieldType.SWORD) {
+            pose = SwordGuardArmPose.SWORD_BLOCK.getValue();
+        } else {
+            pose = HumanoidModel.ArmPose.BLOCK;
+        }
         HumanoidArm arm = hand == InteractionHand.MAIN_HAND
-                ? event.getEntity().getMainArm() : event.getEntity().getMainArm().getOpposite();
+                ? entity.getMainArm() : entity.getMainArm().getOpposite();
         if (arm == HumanoidArm.RIGHT) {
             model.rightArmPose = pose;
             if (model.leftArmPose.isTwoHanded()) model.leftArmPose = HumanoidModel.ArmPose.ITEM;

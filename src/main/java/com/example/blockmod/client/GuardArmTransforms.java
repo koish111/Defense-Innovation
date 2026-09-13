@@ -61,6 +61,13 @@ final class GuardArmTransforms {
     private static final Matrix4f BLOCK_DELTA_RIGHT = blockDelta(false);
     private static final Matrix4f BLOCK_DELTA_LEFT = blockDelta(true);
 
+    /** True only while the hand re-render below runs (render thread, same frame). */
+    private static boolean replicatingFirstPerson;
+
+    static boolean replicatingFirstPerson() {
+        return replicatingFirstPerson;
+    }
+
     /**
      * Renders the vanilla blocking pose for the hand holding the guard's active
      * shield, with the flourish offsets applied on top. {@code requiredTag}
@@ -110,9 +117,17 @@ final class GuardArmTransforms {
         poseStack.last().pose().mul(right ? BLOCK_DELTA_RIGHT : BLOCK_DELTA_LEFT);
 
         event.setCanceled(true); // vanilla must not render this hand a second time untransformed
-        minecraft.gameRenderer.itemInHandRenderer.renderItem(player, stack,
-                right ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
-                !right, poseStack, event.getMultiBufferSource(), event.getPackedLight());
+        // Suppress the re-registered blocking model property while this replica
+        // renders: it must resolve the idle model so the delta above keeps being
+        // the single source of the blocking pose (ShieldBlockPoseProperty).
+        replicatingFirstPerson = true;
+        try {
+            minecraft.gameRenderer.itemInHandRenderer.renderItem(player, stack,
+                    right ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
+                    !right, poseStack, event.getMultiBufferSource(), event.getPackedLight());
+        } finally {
+            replicatingFirstPerson = false;
+        }
         poseStack.popPose();
         return true;
     }

@@ -99,13 +99,20 @@ public final class GuardEquipmentResolver {
         return ShieldType.MEDIUM;
     }
 
+    /**
+     * 2026-09-13 ruling, mainhand-lead semantics: when the mainhand carries a
+     * guardable item, THAT item decides Power Guard eligibility and must be a
+     * great shield — a sword/buckler/medium mainhand keeps normal guard only, so
+     * a sword mainhand plus any offhand shield (great included) can never
+     * activate PG. With no mainhand guard item, a great shield held alone in the
+     * offhand keeps PG (single-great-shield rule).
+     */
     public static boolean canPowerGuard(LivingEntity player, SwordBlockingConfig swordBlocking) {
-        int slot = resolveSlot(player, swordBlocking);
-        if (slot == GuardRules.SLOT_NONE) return false;
-        ItemStack primary = slot == GuardRules.SLOT_OFFHAND ? player.getOffhandItem() : player.getMainHandItem();
-        ItemStack secondary = slot == GuardRules.SLOT_OFFHAND ? player.getMainHandItem() : player.getOffhandItem();
-        return GuardRules.powerGuardEquipmentAllowed(typeOf(primary, swordBlocking) == ShieldType.GREAT,
-                isGuardable(secondary, swordBlocking));
+        ItemStack main = player.getMainHandItem();
+        if (isGuardable(main, swordBlocking)) {
+            return GuardRules.powerGuardEquipmentAllowed(typeOf(main, swordBlocking) == ShieldType.GREAT);
+        }
+        return GuardRules.powerGuardEquipmentAllowed(typeOf(player.getOffhandItem(), swordBlocking) == ShieldType.GREAT);
     }
 
     @Nullable

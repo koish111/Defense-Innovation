@@ -99,6 +99,7 @@ public final class Config {
     private static final ModConfigSpec.ConfigValue<Integer> SWORD_PARRY_WINDOW;
     private static final ModConfigSpec.ConfigValue<Integer> BUCKLER_PARRY_WINDOW;
     private static final ModConfigSpec.ConfigValue<Integer> STUN_DURATION;
+    private static final ModConfigSpec.BooleanValue STUN_RED_OUTLINE;
     private static final ModConfigSpec.ConfigValue<Integer> PARRY_COOLDOWN_TICKS;
     private static final ModConfigSpec.ConfigValue<Integer> BOSS_PARRY_THRESHOLD;
     private static final ModConfigSpec.ConfigValue<Integer> BOSS_PARRY_COUNTER_EXPIRE;
@@ -234,6 +235,7 @@ public final class Config {
         SWORD_PARRY_WINDOW = defineInt("Parry window in ticks for swords.", "sword_parry_window", 5, 0, 20);
         BUCKLER_PARRY_WINDOW = defineInt("Parry window in ticks for bucklers.", "buckler_parry_window", 10, 0, 20);
         STUN_DURATION = defineInt("Stun duration in ticks applied to a parried attacker.", "stun_duration", 20, 0, 200);
+        STUN_RED_OUTLINE = BUILDER.comment("Designer ruling 2026-09-13: a stunned entity shows the vanilla glow outline in red (temporary scoreboard team). Stun world particles are always hidden.").define("stun_red_outline", true);
         PARRY_COOLDOWN_TICKS = defineInt("ADR-07: ticks after a parry (or guard raise) before a new window may open.", "parry_cooldown_ticks", 10, 0, 100);
         BOSS_PARRY_THRESHOLD = defineInt("Successful parries required to stun a boss.", "boss_parry_threshold", 3, 1, 20);
         BOSS_PARRY_COUNTER_EXPIRE = defineInt("Ticks before accumulated boss parries expire.", "boss_parry_counter_expire", 200, 20, 1200);
@@ -322,6 +324,7 @@ public final class Config {
     private static final ModConfigSpec.DoubleValue BASH_ANIMATION_FORWARD;
     private static final ModConfigSpec.DoubleValue BASH_ANIMATION_LIFT;
     private static final ModConfigSpec.DoubleValue BASH_ANIMATION_PITCH;
+    private static final ModConfigSpec.BooleanValue BUCKLER_GUARD_RAISE_ENABLED;
     public static final ModConfigSpec CLIENT_SPEC;
 
     static {
@@ -345,6 +348,11 @@ public final class Config {
         BASH_ANIMATION_PITCH = clientBuilder.comment("Maximum upward tilt in degrees.")
                 .defineInRange("pitch_degrees", 0.0, 0.0, 90.0);
         clientBuilder.pop();
+        clientBuilder.comment("Third-person buckler guard-raise presentation (visual only).").push("buckler_guard_raise");
+        BUCKLER_GUARD_RAISE_ENABLED = clientBuilder.comment(
+                        "Show the instant raised-shield display when a buckler guard is confirmed. Never touches server windows.")
+                .define("enabled", true);
+        clientBuilder.pop();
         CLIENT_SPEC = clientBuilder.build();
     }
 
@@ -358,6 +366,9 @@ public final class Config {
     public static float bashAnimationForward() { return BASH_ANIMATION_FORWARD.get().floatValue(); }
     public static float bashAnimationLift() { return BASH_ANIMATION_LIFT.get().floatValue(); }
     public static float bashAnimationPitch() { return BASH_ANIMATION_PITCH.get().floatValue(); }
+
+    // [buckler_guard_raise] (client)
+    public static boolean bucklerGuardRaiseEnabled() { return BUCKLER_GUARD_RAISE_ENABLED.get(); }
 
     // ==================================================================
     // accessors — the only way gameplay code reads numbers
@@ -401,6 +412,7 @@ public final class Config {
     public static int swordParryWindow() { return SWORD_PARRY_WINDOW.get(); }
     public static int bucklerParryWindow() { return BUCKLER_PARRY_WINDOW.get(); }
     public static int stunDuration() { return STUN_DURATION.get(); }
+    public static boolean stunRedOutline() { return STUN_RED_OUTLINE.get(); }
     public static int parryCooldownTicks() { return PARRY_COOLDOWN_TICKS.get(); }
     public static int powerGuardCooldownTicks() { return PG_COOLDOWN_TICKS.get(); }
     public static int bossParryThreshold() { return BOSS_PARRY_THRESHOLD.get(); }

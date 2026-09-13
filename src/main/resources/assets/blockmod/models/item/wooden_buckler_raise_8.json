@@ -1,0 +1,99 @@
+{
+	"parent": "blockmod:item/wooden_buckler",
+	"display": {
+		"firstperson_righthand": {
+			"translation": [
+				2,
+				-5,
+				0
+			]
+		},
+		"firstperson_lefthand": {
+			"translation": [
+				2,
+				-5,
+				0
+			]
+		},
+		"ground": {
+			"rotation": [
+				0,
+				-180,
+				0
+			],
+			"translation": [
+				0,
+				3.75,
+				1.5
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		"gui": {
+			"rotation": [
+				0,
+				-180,
+				0
+			],
+			"translation": [
+				0,
+				0.25,
+				0
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		"fixed": {
+			"translation": [
+				0,
+				1,
+				0
+			],
+			"scale": [
+				0.8,
+				0.8,
+				0.8
+			]
+		},
+		"thirdperson_righthand": {
+			"rotation": [
+				30.0,
+				-46.6667,
+				0.0
+			],
+			"translation": [
+				-0.9295,
+				-1.1182,
+				-0.7719
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [
+				30.0,
+				-46.6667,
+				-0.0
+			],
+			"translation": [
+				-0.5968,
+				-0.5973,
+				-0.9595
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		}
+	}
+}

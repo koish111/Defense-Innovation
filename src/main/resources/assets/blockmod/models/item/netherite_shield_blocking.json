@@ -1,0 +1,29 @@
+{
+	"parent": "blockmod:item/netherite_shield",
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [
+				45.0,
+				155.0,
+				0.0
+			],
+			"translation": [
+				-2.7773,
+				-1.5236,
+				-0.7901
+			]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [
+				45.0,
+				155.0,
+				-0.0
+			],
+			"translation": [
+				-2.2782,
+				-0.7422,
+				-1.0715
+			]
+		}
+	}
+}

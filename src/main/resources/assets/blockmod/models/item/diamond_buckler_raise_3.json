@@ -1,0 +1,87 @@
+{
+	"parent": "blockmod:item/diamond_buckler",
+	"display": {
+		"firstperson_righthand": {
+			"translation": [
+				2,
+				-5,
+				0
+			]
+		},
+		"firstperson_lefthand": {
+			"translation": [
+				2,
+				-5,
+				0
+			]
+		},
+		"ground": {
+			"rotation": [
+				0,
+				-180,
+				0
+			],
+			"translation": [
+				0,
+				3.75,
+				1.5
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		"gui": {
+			"rotation": [
+				0,
+				-180,
+				0
+			],
+			"translation": [
+				0,
+				0.25,
+				0
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		"thirdperson_righthand": {
+			"rotation": [
+				11.25,
+				-73.75,
+				0.0
+			],
+			"translation": [
+				0.9014,
+				-1.5131,
+				-0.2895
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [
+				11.25,
+				-73.75,
+				-0.0
+			],
+			"translation": [
+				1.0262,
+				-1.3177,
+				-0.3598
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
+		}
+	}
+}
