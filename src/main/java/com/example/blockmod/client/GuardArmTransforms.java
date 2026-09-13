@@ -87,7 +87,7 @@ final class GuardArmTransforms {
         if (!(minecraft.player instanceof AbstractClientPlayer player)) {
             return false;
         }
-        if (!GuardPoseRenderer.shouldPose(player, event.getHand())
+        if (GuardPoseRenderer.hasCustomerAnimation(player) || !GuardPoseRenderer.shouldPose(player, event.getHand())
                 || !ItemStack.isSameItemSameComponents(stack, player.getItemInHand(event.getHand()))
                 || (requiredTag != null && ShieldGuardPose.activeShieldHand(player) != event.getHand())) {
             return false;
@@ -110,6 +110,9 @@ final class GuardArmTransforms {
         poseStack.last().pose().mul(right ? BLOCK_DELTA_RIGHT : BLOCK_DELTA_LEFT);
 
         event.setCanceled(true); // vanilla must not render this hand a second time untransformed
+        GuardSparks.captureFirstPerson(player, event.getHand(), stack,
+                right ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
+                !right, poseStack);
         minecraft.gameRenderer.itemInHandRenderer.renderItem(player, stack,
                 right ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
                 !right, poseStack, event.getMultiBufferSource(), event.getPackedLight());
