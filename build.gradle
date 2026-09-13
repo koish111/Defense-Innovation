@@ -31,27 +31,6 @@ repositories {
     // Unit-test dependencies (JUnit) and any future third-party libraries resolve here;
     // maven.neoforged.net is added automatically by ModDevGradle for NeoForge artifacts.
     mavenCentral()
-
-    // Player Animation Library and its bend support are published artifacts.
-    maven {
-        name = 'RedlanceMinecraft'
-        url = uri('https://repo.redlance.org/public')
-    }
-    maven {
-        name = 'CurseMaven'
-        url = uri('https://www.cursemaven.com')
-    }
-    exclusiveContent {
-        forRepository {
-            maven {
-                name = 'Modrinth'
-                url = uri('https://api.modrinth.com/maven')
-            }
-        }
-        filter {
-            includeGroup 'maven.modrinth'
-        }
-    }
 }
 
 base {
@@ -139,20 +118,6 @@ configurations {
 }
 
 dependencies {
-    // Player Animation LibraryMoreRotation runtime stack for NeoForge 1.21.1.
-    implementation("maven.modrinth:playeranimationlibrarymorerotation:${pal_more_version}") {
-        transitive = false
-    }
-    implementation("com.zigythebird.playeranim:PlayerAnimationLibNeo:${pal_version}") {
-        transitive = false
-    }
-    implementation("com.zigythebird.playeranim:PlayerAnimationLibCore:${pal_version}") {
-        transitive = false
-    }
-    implementation("curse.maven:particle-storm-1124172:${particle_storm_file_id}") {
-        transitive = false
-    }
-
     // Pure-function unit tests (AGENTS.md §10 — JUnit 5, no Minecraft bootstrap).
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
