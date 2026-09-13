@@ -165,6 +165,12 @@ public final class ClientGuardInputHandler {
         ItemStack stack = player.getItemInHand(event.getHand());
         if (!stack.isItemEnabled(minecraft.level.enabledFeatures())) return;
         guardUseAccepted = tryTargetInteraction(minecraft, player, event.getHand(), allowSwing);
+        if (guardUseAccepted && !sentState) {
+            PacketDistributor.sendToServer(new GuardInputPayload(true, player.tickCount));
+            sentState = true;
+            sentGuardStack = activeGuardStack(player);
+            ticksSinceSend = 0;
+        }
     }
 
     /** Mirrors vanilla startUseItem's target-first ordering through public game-mode methods. */

@@ -20,7 +20,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  */
 public final class ModPayloads {
     public static void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("3");
+        PayloadRegistrar registrar = event.registrar("4");
         registrar.playToClient(StaminaSyncPayload.TYPE, StaminaSyncPayload.STREAM_CODEC,
                 (payload, context) -> ClientGuardState.acceptStaminaSync(payload));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
@@ -29,8 +29,7 @@ public final class ModPayloads {
                 (payload, context) -> com.example.blockmod.client.GuardPoseRenderer.acceptSync(payload));
         registrar.playToClient(com.example.blockmod.network.BashWindupPayload.TYPE,
                 com.example.blockmod.network.BashWindupPayload.STREAM_CODEC,
-                (payload, context) -> com.example.blockmod.client.ShieldBashAnimation
-                        .acceptWindup(payload.durationTicks()));
+                (payload, context) -> com.example.blockmod.client.GuardPoseRenderer.acceptWindup(payload));
         registrar.playToServer(GuardInputPayload.TYPE, GuardInputPayload.STREAM_CODEC,
                 (payload, context) -> ServerGuardInputHandler.handle(
                         (net.minecraft.server.level.ServerPlayer) context.player(), payload));

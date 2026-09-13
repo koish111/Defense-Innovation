@@ -1,6 +1,8 @@
 package com.example.blockmod.network;
 
 import io.netty.buffer.ByteBuf;
+import java.util.UUID;
+import net.minecraft.core.UUIDUtil;
 
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -15,12 +17,13 @@ import com.example.blockmod.BlockMod;
  * client push animation spans exactly the authoritative windup. Sent once per
  * successful bash attempt (rejected attempts send nothing).
  */
-public record BashWindupPayload(int durationTicks) implements CustomPacketPayload {
+public record BashWindupPayload(UUID playerId, int durationTicks) implements CustomPacketPayload {
 
     public static final Type<BashWindupPayload> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "bash_windup"));
 
     public static final StreamCodec<ByteBuf, BashWindupPayload> STREAM_CODEC = StreamCodec.composite(
+            UUIDUtil.STREAM_CODEC, BashWindupPayload::playerId,
             ByteBufCodecs.VAR_INT, BashWindupPayload::durationTicks,
             BashWindupPayload::new);
 
