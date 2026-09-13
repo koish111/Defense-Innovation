@@ -26,6 +26,7 @@ import io.netty.buffer.Unpooled;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -36,10 +37,12 @@ import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.scores.PlayerTeam;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.util.FakePlayer;
+import net.neoforged.neoforge.event.entity.living.EffectParticleModificationEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -112,6 +115,8 @@ public final class M2Verify {
         log(new Result("edge_无跳变", fired == 0, "0 fires", fired + " fires"));
         BlockModLogger.info("M2VERIFY", "note", "=== stun freeze (FR-05) ===");
         stunFreezeCases(level);
+        BlockModLogger.info("M2VERIFY", "note", "=== stun presentation (2026-09-13) ===");
+        stunGlowCases(level);
         BlockModLogger.info("M2VERIFY", "note", "=== stun defense gate (FR-05) ===");
         stunDefenseCases(level, new GuardProbe(level,
                 new GameProfile(UUID.fromString("b10c8b10-c8b1-0c8b-10c8-b10c8b10c8b3"), "M2GuardProbe")));
@@ -387,6 +392,7 @@ public final class M2Verify {
         for (int i = 0; i < 10; i++) pig.tick();
         double pushed = Math.hypot(pig.getX() - fx, pig.getZ() - fz);
         log(new Result("stun 冻结: 击退穿透外力生效", pushed > 0.05, ">0.05", String.format("%.4f", pushed)));
+        pig.removeEffect(ModEffects.STUN); // discard() skips effect cleanup — leave no team residue
         pig.discard();
 
         // 攻击: a stunned attacker deals no damage (hurt pipeline, server-authoritative)
@@ -404,8 +410,47 @@ public final class M2Verify {
                 String.format("landed=%s hp=%.1f", controlLanded, afterControl)));
         log(new Result("stun 攻击: 眩晕后伤害被取消", !stunnedLanded && victim.getHealth() == afterControl, "不扣血",
                 String.format("landed=%s hp=%.1f", stunnedLanded, victim.getHealth())));
+        zombie.removeEffect(ModEffects.STUN); // discard() skips effect cleanup — leave no team residue
         zombie.discard();
         victim.discard();
+    }
+
+    /**
+     * 2026-09-13 ruling (stun presentation): no world potion particles and a red
+     * glow outline. The glow flag and the RED scoreboard team land with the
+     * effect, the outline colour reads back through {@code getTeamColor()}, and
+     * removal restores the pre-stun team. The particle path is asserted by
+     * posting the real {@link EffectParticleModificationEvent} the effect-sync
+     * pipeline posts.
+     */
+    private static void stunGlowCases(ServerLevel level) {
+        var scoreboard = level.getScoreboard();
+        PlayerTeam prevTeam = scoreboard.getPlayerTeam("m2verify_prev");
+        if (prevTeam == null) {
+            prevTeam = scoreboard.addPlayerTeam("m2verify_prev");
+        }
+        prevTeam.setColor(ChatFormatting.GREEN);
+
+        Pig pig = EntityType.PIG.create(level);
+        scoreboard.addPlayerToTeam(pig.getScoreboardName(), prevTeam);
+        pig.addEffect(new MobEffectInstance(ModEffects.STUN, 40, 0, false, true, true), null);
+        boolean glowOn = pig.hasGlowingTag() && pig.isCurrentlyGlowing();
+        boolean teamRed = pig.getTeam() != null && pig.getTeam().getName().equals("blockmod_stun")
+                && pig.getTeamColor() == ChatFormatting.RED.getColor();
+        var particle = new EffectParticleModificationEvent(pig,
+                new MobEffectInstance(ModEffects.STUN, 40, 0, false, true, true));
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(particle);
+        log(new Result("stun 表现: 发光标志+红色描边队伍", glowOn && teamRed, "glow+RED",
+                String.format("glow=%s color=%s", glowOn, pig.getTeamColor())));
+        log(new Result("stun 表现: 药水粒子被隐藏", !particle.isVisible(), "invisible",
+                String.format("visible=%s", particle.isVisible())));
+        pig.removeEffect(ModEffects.STUN);
+        boolean restored = pig.getTeam() == prevTeam && !pig.hasGlowingTag() && !pig.isCurrentlyGlowing();
+        log(new Result("stun 表现: 移除后还原原队伍", restored, "green+无发光",
+                String.format("team=%s glow=%s", pig.getTeam() == prevTeam, pig.hasGlowingTag())));
+        scoreboard.removePlayerFromTeam(pig.getScoreboardName());
+        pig.discard();
+        scoreboard.removePlayerTeam(prevTeam);
     }
 
     /**
