@@ -115,10 +115,16 @@ public final class GuardPoseRenderer {
     private static void poseArm(RenderPlayerEvent.Pre event, InteractionHand hand) {
         if (!shouldPose(event.getEntity(), hand)) return;
         var model = event.getRenderer().getModel();
-        var pose = GuardEquipmentResolver.typeOf(event.getEntity().getItemInHand(hand), ClientGuardState.swordBlocking())
-                == ShieldType.SWORD ? SwordGuardArmPose.SWORD_BLOCK.getValue() : HumanoidModel.ArmPose.BLOCK;
+        var entity = event.getEntity();
+        var stackType = GuardEquipmentResolver.typeOf(entity.getItemInHand(hand), ClientGuardState.swordBlocking());
+        HumanoidModel.ArmPose pose;
+        if (stackType == ShieldType.SWORD) {
+            pose = SwordGuardArmPose.SWORD_BLOCK.getValue();
+        } else {
+            pose = HumanoidModel.ArmPose.BLOCK;
+        }
         HumanoidArm arm = hand == InteractionHand.MAIN_HAND
-                ? event.getEntity().getMainArm() : event.getEntity().getMainArm().getOpposite();
+                ? entity.getMainArm() : entity.getMainArm().getOpposite();
         if (arm == HumanoidArm.RIGHT) {
             model.rightArmPose = pose;
             if (model.leftArmPose.isTwoHanded()) model.leftArmPose = HumanoidModel.ArmPose.ITEM;

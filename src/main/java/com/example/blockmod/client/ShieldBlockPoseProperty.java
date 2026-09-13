@@ -6,7 +6,6 @@ import net.minecraft.client.renderer.item.ClampedItemPropertyFunction;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
 /**
@@ -29,6 +28,10 @@ import net.minecraft.world.item.Items;
  * reports {@link GuardArmTransforms#replicatingFirstPerson()} while it
  * re-renders the hand, and the property returns 0 so the guard pipeline keeps
  * applying its own display-transform delta.
+ *
+ * <p>Bucklers are excluded (revert ruling 2026-09-13): a guarding buckler
+ * keeps its idle third-person render, so their item properties are never
+ * touched and no {@code *_blocking} variant exists for them.
  */
 public final class ShieldBlockPoseProperty {
 
@@ -49,8 +52,13 @@ public final class ShieldBlockPoseProperty {
     public static void register() {
         ItemProperties.register(Items.SHIELD, BLOCKING, GUARD_BLOCKING);
         for (var holder : ModItems.allShields()) {
-            Item item = holder.get();
-            ItemProperties.register(item, BLOCKING, GUARD_BLOCKING);
+            // Buckler revert ruling (2026-09-13): bucklers keep their
+            // pre-feature third-person idle render — no blocking=1 override,
+            // no *_blocking variant — so their properties stay untouched.
+            if (holder.getId().getPath().endsWith("_buckler")) {
+                continue;
+            }
+            ItemProperties.register(holder.get(), BLOCKING, GUARD_BLOCKING);
         }
     }
 

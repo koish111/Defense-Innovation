@@ -1,13 +1,20 @@
-"""Regenerates the third-person `*_blocking` variant displays for every guard
-shield (2026-09-13 ruling).
+"""Regenerates the third-person `*_blocking` variant displays for the medium
+and great guard shields (2026-09-13 ruling), plus the buckler guard-raise
+variant ladder (2026-09-13 ruling, supersedes the same-day buckler revert):
+`<buckler>_raise_<k>.json` samples the interpolation from each buckler's own
+idle third-person display to its raised blocking display (vanilla delta +
+arm-front X calibration), selected at runtime by the `blockmod:guard_raise`
+item property while the guard-raise envelope runs. Every raise variant copies
+the idle model's non-third-person displays verbatim, so first-person and GUI
+rendering never change.
 
-Never hand-edit a `*_blocking.json` display table. This script applies the
-vanilla idle->blocking transform delta — the same motion a vanilla shield
-makes when it starts blocking — to each shield's own idle third-person
-display, so the result is geometry-independent (no assumption about where a
-shield's elements sit around the model origin). Running it against the
-vanilla shield's own idle display reproduces `item/shield_blocking.json`
-exactly (asserted as a self-check).
+Never hand-edit a `*_blocking.json` or `*_raise_*.json` display table. The
+blocking script applies the vanilla idle->blocking transform delta — the same
+motion a vanilla shield makes when it starts blocking — to each shield's own
+idle third-person display, so the result is geometry-independent (no
+assumption about where a shield's elements sit around the model origin).
+Running it against the vanilla shield's own idle display reproduces
+`item/shield_blocking.json` exactly (asserted as a self-check).
 
 Usage:
     python tools/models/calc_shield_block_variants.py
@@ -21,7 +28,6 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 MODELS = os.path.join(REPO, "src", "main", "resources", "assets", "blockmod", "models", "item")
 
 SHIELDS = [
-    "wooden_buckler", "iron_buckler", "diamond_buckler", "netherite_buckler",
     "reinforced_iron_shield", "diamond_shield", "netherite_shield",
     "wooden_great_shield", "iron_great_shield", "diamond_great_shield",
     "netherite_great_shield",
@@ -38,18 +44,6 @@ VAN_BLOCK = {
     False: {"rot": [45, 155, 0], "trans": [-3.49, 11, -2]},
     True:  {"rot": [45, 155, 0], "trans": [11.51, 7, 2.5]},
 }
-
-# Hand-calibration (2026-09-13): in the composed blocking pose the buckler
-# plate rides ~0.85 display units too far across the hand toward the body
-# centre compared with the great/medium shields, in BOTH hands (the visual
-# error mirrors between them). Derived value: aligns the buckler's plate
-# centre laterally with the great/medium plate-centre consensus (-2.1698
-# rendered units in either hand). Positive c shifts BOTH JSON entries' x by
-# +c: the right-hand render applies translation verbatim (visual: outward
-# right), while ItemTransform mirrors left-hand translation x (visual:
-# outward left) — i.e. the shield moves off the body centre in both hands.
-# Bump or negate after in-game review.
-BUCKLER_X_CALIBRATION = 0.8514
 
 RAD = math.pi / 180.0
 
@@ -172,18 +166,108 @@ for name in SHIELDS:
         "parent": "blockmod:item/" + name,
         "display": variant_display(idle["thirdperson_righthand"], idle["thirdperson_lefthand"]),
     }
-    if name.endswith("buckler") and BUCKLER_X_CALIBRATION:
-        d = variant["display"]
-        # Same JSON sign for both hands: the left-hand render mirrors
-        # translation x, so +c reads as outward-right on the right hand and
-        # outward-left on the left hand.
-        d["thirdperson_righthand"]["translation"][0] = round(
-            d["thirdperson_righthand"]["translation"][0] + BUCKLER_X_CALIBRATION, 4)
-        d["thirdperson_lefthand"]["translation"][0] = round(
-            d["thirdperson_lefthand"]["translation"][0] + BUCKLER_X_CALIBRATION, 4)
     out_path = os.path.join(MODELS, name + "_blocking.json")
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(variant, f, indent="\t")
         f.write("\n")
     d = variant["display"]
     print(name, "rh", d["thirdperson_righthand"], "lh", d["thirdperson_lefthand"])
+
+
+# --- buckler guard-raise ladder (2026-09-13 ruling) --------------------------
+# `blockmod:guard_raise` (BucklerGuardRaiseProperty) returns the eased envelope
+# progress; the idle model's overrides select `<buckler>_raise_<k>.json` at the
+# thresholds below (same stepped selection a drawn bow uses). The final step is
+# the raised blocking display with the arm-front X calibration.
+
+BUCKLERS = ["wooden_buckler", "iron_buckler", "diamond_buckler", "netherite_buckler"]
+GUARD_RAISE_PREDICATE = "blockmod:guard_raise"
+BUCKLER_RAISE_STEPS = 12
+# Designer calibration (2026-09-13): shifts the raised shield face onto the
+# front end of the arm box, applied in entry space to both hands (the left
+# hand's mirror flips it in rendered space, moving each hand's shield outward).
+BUCKLER_X_CALIBRATION = 0.8514
+
+
+def raise_endpoints(idle_rh, idle_lh):
+    """Per-hand rendered-space endpoints: the idle rotation matrix/translation
+    and the raised blocking target (vanilla delta + X calibration baked in
+    BEFORE sampling, so the ladder including the last step is continuous)."""
+    endpoints = {}
+    for left, idle in ((False, idle_rh), (True, idle_lh)):
+        ri, ti = entry_to_rendered(idle["rotation"], idle.get("translation", [0, 0, 0]), left)
+        rb, tb = entry_to_rendered(VAN_BLOCK[left]["rot"], VAN_BLOCK[left]["trans"], left)
+        vi, vt = entry_to_rendered(VAN_IDLE[left]["rot"], VAN_IDLE[left]["trans"], left)
+        delta = mul(rb, inv(vi))
+        t_final = [tb[i] + mv(delta, [ti[k] - vt[k] for k in range(3)])[i] for i in range(3)]
+        r_final = mul(delta, ri)
+        entry_rot, entry_trans = rendered_to_entry(decompose_xyz(r_final), t_final, left)
+        entry_trans[0] += BUCKLER_X_CALIBRATION
+        r_cal, t_cal = entry_to_rendered(entry_rot, entry_trans, left)
+        # the calibration is a pure entry-space translation shift: the rendered
+        # rotation must be untouched and the translation shifted per mirror
+        # (tolerances cover rendered_to_entry's 4-decimal rounding granularity)
+        assert all(abs(r_cal[i][j] - r_final[i][j]) < 1e-4 for i in range(3) for j in range(3)), name
+        expected_x = t_final[0] - BUCKLER_X_CALIBRATION if left else t_final[0] + BUCKLER_X_CALIBRATION
+        assert abs(t_cal[0] - expected_x) < 1e-4, (name, left, t_cal, t_final)
+        e_idle = decompose_xyz(ri)
+        e_final = decompose_xyz(r_cal)
+        # component lerp needs compatible euler branches (decompose folds c near 0)
+        assert abs(e_idle[2]) <= 90.0 and abs(e_final[2]) <= 90.0, (name, e_idle, e_final)
+        endpoints[left] = {"idle_r": ri, "idle_t": ti, "e_idle": e_idle,
+                           "e_final": e_final, "final_r": r_cal, "final_t": t_cal}
+    return endpoints
+
+
+def raise_entry(endpoint, left, t, idle):
+    rot = [endpoint["e_idle"][k] + (endpoint["e_final"][k] - endpoint["e_idle"][k]) * t for k in range(3)]
+    trans = [endpoint["idle_t"][k] + (endpoint["final_t"][k] - endpoint["idle_t"][k]) * t for k in range(3)]
+    entry_rot, entry_trans = rendered_to_entry(rot, trans, left)
+    entry = {"rotation": entry_rot, "translation": entry_trans}
+    if "scale" in idle:
+        entry["scale"] = list(idle["scale"])
+    return entry
+
+
+for name in BUCKLERS:
+    base_path = os.path.join(MODELS, name + ".json")
+    with open(base_path, encoding="utf-8") as f:
+        base = json.load(f)
+    idle = base["display"]
+    # drop stale raise variants from previous runs
+    for existing in os.listdir(MODELS):
+        if existing.startswith(name + "_raise_") and existing.endswith(".json"):
+            os.remove(os.path.join(MODELS, existing))
+    endpoints = raise_endpoints(idle["thirdperson_righthand"], idle["thirdperson_lefthand"])
+    overrides = []
+    for k in range(1, BUCKLER_RAISE_STEPS + 1):
+        t = k / BUCKLER_RAISE_STEPS
+        display = {key: idle[key] for key in idle
+                   if key not in ("thirdperson_righthand", "thirdperson_lefthand")}
+        for left, hand in ((False, "thirdperson_righthand"), (True, "thirdperson_lefthand")):
+            display[hand] = raise_entry(endpoints[left], left, t, idle[hand])
+        variant = {
+            "parent": "blockmod:item/" + name,
+            "display": display,
+        }
+        out_path = os.path.join(MODELS, f"{name}_raise_{k}.json")
+        with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(variant, f, indent="\t")
+            f.write("\n")
+        overrides.append({
+            "predicate": {GUARD_RAISE_PREDICATE: round(t, 4)},
+            "model": "blockmod:item/" + name + "_raise_" + str(k),
+        })
+    base["overrides"] = overrides
+    with open(base_path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(base, f, indent="\t")
+        f.write("\n")
+    # final-step correctness: k=STEPS must rebuild the calibrated blocking pose
+    for left, hand in ((False, "thirdperson_righthand"), (True, "thirdperson_lefthand")):
+        final_entry = raise_entry(endpoints[left], left, 1.0, idle[hand])
+        rr, tr = entry_to_rendered(final_entry["rotation"], final_entry["translation"], left)
+        assert all(abs(rr[i][j] - endpoints[left]["final_r"][i][j]) < 1e-4
+                   for i in range(3) for j in range(3)), (name, hand, "rot")
+        assert all(abs(tr[i] - endpoints[left]["final_t"][i]) < 1e-4
+                   for i in range(3)), (name, hand, "trans")
+    print(name, "raise ladder", BUCKLER_RAISE_STEPS, "steps + overrides written")

@@ -324,6 +324,7 @@ public final class Config {
     private static final ModConfigSpec.DoubleValue BASH_ANIMATION_FORWARD;
     private static final ModConfigSpec.DoubleValue BASH_ANIMATION_LIFT;
     private static final ModConfigSpec.DoubleValue BASH_ANIMATION_PITCH;
+    private static final ModConfigSpec.BooleanValue BUCKLER_GUARD_RAISE_ENABLED;
     public static final ModConfigSpec CLIENT_SPEC;
 
     static {
@@ -347,6 +348,11 @@ public final class Config {
         BASH_ANIMATION_PITCH = clientBuilder.comment("Maximum upward tilt in degrees.")
                 .defineInRange("pitch_degrees", 0.0, 0.0, 90.0);
         clientBuilder.pop();
+        clientBuilder.comment("Third-person buckler guard-raise presentation (visual only).").push("buckler_guard_raise");
+        BUCKLER_GUARD_RAISE_ENABLED = clientBuilder.comment(
+                        "Show the instant raised-shield display when a buckler guard is confirmed. Never touches server windows.")
+                .define("enabled", true);
+        clientBuilder.pop();
         CLIENT_SPEC = clientBuilder.build();
     }
 
@@ -360,6 +366,9 @@ public final class Config {
     public static float bashAnimationForward() { return BASH_ANIMATION_FORWARD.get().floatValue(); }
     public static float bashAnimationLift() { return BASH_ANIMATION_LIFT.get().floatValue(); }
     public static float bashAnimationPitch() { return BASH_ANIMATION_PITCH.get().floatValue(); }
+
+    // [buckler_guard_raise] (client)
+    public static boolean bucklerGuardRaiseEnabled() { return BUCKLER_GUARD_RAISE_ENABLED.get(); }
 
     // ==================================================================
     // accessors — the only way gameplay code reads numbers
