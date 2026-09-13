@@ -191,6 +191,19 @@ public final class GuardRules {
     }
 
     // ------------------------------------------------------------------
+    // Guard grace window (ruling 2026-09-14): anti multi-hit stamina drain
+
+    /**
+     * {@return true} when {@code now} falls inside the grace window opened by
+     * the last PAID guard settlement. Guarded hits inside the window are still
+     * cancelled, but settle for free — slime chains and pufferfish poison must
+     * not drain the guard one full cost per tick.
+     */
+    public static boolean inGuardGrace(long now, long graceEndTick) {
+        return graceEndTick >= 0L && now < graceEndTick;
+    }
+
+    // ------------------------------------------------------------------
     // §5.4.2 ten-step arbitration over primitives (pure, unit-tested)
 
     /** GuardResult ordinals used by {@link #resolveGuard}. */

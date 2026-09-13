@@ -27,6 +27,7 @@ public final class GuardStateData {
     private long powerGuardReadyTick = -1L;
     private long bashWindupEndTick = -1L;
     private long bashReadyTick = -1L;
+    private long guardGraceEndTick = -1L;
     private ResourceLocation activeMoveMalusId;
     private boolean wasDepleted;
 
@@ -38,6 +39,7 @@ public final class GuardStateData {
         this.guarding = guarding;
         if (!guarding) {
             guardStack = ItemStack.EMPTY;
+            guardGraceEndTick = -1L; // a dropped guard must not inherit the grace window
         }
     }
 
@@ -129,6 +131,21 @@ public final class GuardStateData {
     }
 
     /**
+     * End tick of the guard grace window (2026-09-14 ruling): after a PAID
+     * guard settlement, further guarded hits inside this window are cancelled
+     * but settle for free (no stamina, no durability, no regen-delay reset) —
+     * multi-hit damage (slime chains, pufferfish poison) must not drain the
+     * guard faster than the settlement rhythm intends. {@code -1} = no window.
+     */
+    public long guardGraceEndTick() {
+        return guardGraceEndTick;
+    }
+
+    public void setGuardGraceEndTick(long guardGraceEndTick) {
+        this.guardGraceEndTick = guardGraceEndTick;
+    }
+
+    /**
      * Id of the currently mounted move-speed modifier; null = none.
      * Spec §4.3.3 named this field a UUID, but 1.20.5+ keys attribute modifiers by
      * ResourceLocation (verified in M0, API-10) so the type follows the platform.
@@ -157,6 +174,7 @@ public final class GuardStateData {
                 + ", parryReady=" + parryReadyTick + ", powerGuarding=" + powerGuarding
                 + ", powerGuardReady=" + powerGuardReadyTick
                 + ", bashWindupEnd=" + bashWindupEndTick + ", bashReady=" + bashReadyTick
+                + ", graceEnd=" + guardGraceEndTick
                 + ", malusId=" + activeMoveMalusId + ", wasDepleted=" + wasDepleted + "]";
     }
 }
