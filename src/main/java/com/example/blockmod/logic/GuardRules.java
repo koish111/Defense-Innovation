@@ -126,8 +126,17 @@ public final class GuardRules {
         return SLOT_NONE;
     }
 
-    public static boolean powerGuardEquipmentAllowed(boolean primaryGreatShield, boolean secondaryGuardable) {
-        return primaryGreatShield || secondaryGuardable;
+    /**
+     * 2026-09-13 maintainer ruling: Power Guard is great-shield-exclusive — the
+     * LEADING guard item must be a great shield. The lead is the mainhand hold
+     * whenever it carries a guardable item, otherwise the sole offhand guard
+     * item (single great shield). This revokes the 2026-09-12 "any two guardable
+     * items" branch: swords and buckler/medium shields keep normal guard only,
+     * so a sword mainhand plus any offhand shield can no longer activate Power
+     * Guard. See {@code GuardEquipmentResolver#canPowerGuard} for the slot pick.
+     */
+    public static boolean powerGuardEquipmentAllowed(boolean primaryGreatShield) {
+        return primaryGreatShield;
     }
 
     // ------------------------------------------------------------------

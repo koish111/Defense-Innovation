@@ -17,7 +17,8 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * FR-16 / T-37: power guard with two guardable items or one great shield. Activation arms
+ * FR-16 / T-37: power guard led by a great shield (single, or dual hold with any
+ * guardable secondary — 2026-09-13 ruling). Activation arms
  * {@code GuardStateData#powerGuarding}; the per-tick effects (drain, regen
  * suspension, jump clamp, gb bonus) live in the tick pipeline (§5.3.1 step 1 /
  * §5.7). Deactivation: key release, guard exit (right-click), item switch, or
@@ -104,7 +105,7 @@ public final class PowerGuardService {
             return "guard equipment changed";
         }
         if (!GuardEquipmentResolver.canPowerGuard(player, Config.swordBlocking())) {
-            return "needs two guardable items or one great shield";
+            return "needs a great shield as the guard item";
         }
         StaminaData stamina = player.getData(ModAttachments.STAMINA.get());
         if (stamina.isDepleted()) {

@@ -61,6 +61,13 @@ final class GuardArmTransforms {
     private static final Matrix4f BLOCK_DELTA_RIGHT = blockDelta(false);
     private static final Matrix4f BLOCK_DELTA_LEFT = blockDelta(true);
 
+    /** True only while the hand re-render below runs (render thread, same frame). */
+    private static boolean replicatingFirstPerson;
+
+    static boolean replicatingFirstPerson() {
+        return replicatingFirstPerson;
+    }
+
     /**
      * Renders the vanilla blocking pose for the hand holding the guard's active
      * shield, with the flourish offsets applied on top. {@code requiredTag}

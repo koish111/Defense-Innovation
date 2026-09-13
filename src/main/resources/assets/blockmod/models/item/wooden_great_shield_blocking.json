@@ -1,0 +1,29 @@
+{
+	"parent": "blockmod:item/wooden_great_shield",
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [
+				45.0,
+				-25.0,
+				-0.0
+			],
+			"translation": [
+				-1.8264,
+				-0.0817,
+				-2.232
+			]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [
+				45.0,
+				-25.0,
+				0.0
+			],
+			"translation": [
+				-1.3273,
+				0.6997,
+				-2.5134
+			]
+		}
+	}
+}

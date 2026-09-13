@@ -25,8 +25,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *       with a medium shield triggers {@code shield_bash}; the server validates
  *       the cooldown and the windup.</li>
  *   <li><b>Power guard</b> (FR-16): the Left Ctrl binding (remappable) combines
- *       with guard intent for two guardable items or one great shield. Guard
- *       entry is sent first regardless of which physical key was pressed first.</li>
+ *       with guard intent and requires a great shield as the primary guard
+ *       item (2026-09-13 ruling). Guard entry is sent first regardless of
+ *       which physical key was pressed first.</li>
  * </ul>
  */
 @EventBusSubscriber(modid = BlockMod.MODID, value = Dist.CLIENT)
