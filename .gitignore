@@ -40,3 +40,4 @@ repo/
 !**/src/**/repo/
 /docs/
 /.workbuddy/**
+/.trae/
