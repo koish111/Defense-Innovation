@@ -1,0 +1,19 @@
+{
+  "itemGroup.blockmod": "Block & Parry",
+  "item.blockmod.wooden_buckler": "Wooden Buckler",
+  "item.blockmod.iron_buckler": "Iron Buckler",
+  "item.blockmod.diamond_buckler": "Diamond Buckler",
+  "item.blockmod.netherite_buckler": "Netherite Buckler",
+  "item.blockmod.reinforced_iron_shield": "Reinforced Iron Shield",
+  "item.blockmod.diamond_shield": "Diamond Shield",
+  "item.blockmod.netherite_shield": "Netherite Shield",
+  "item.blockmod.wooden_great_shield": "Wooden Great Shield",
+  "item.blockmod.iron_great_shield": "Iron Great Shield",
+  "item.blockmod.diamond_great_shield": "Diamond Great Shield",
+  "item.blockmod.netherite_great_shield": "Netherite Great Shield",
+  "effect.blockmod.stun": "Stun",
+  "tooltip.blockmod.guard_strength": "Guard Strength: %s%%",
+  "tooltip.blockmod.power_guard": "Fortified Guard: +%s%%",
+  "key.categories.blockmod": "Block & Parry",
+  "key.blockmod.power_guard": "Fortified Guard"
+}

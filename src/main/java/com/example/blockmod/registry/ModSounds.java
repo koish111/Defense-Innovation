@@ -30,6 +30,7 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> FORTIFIED_GUARD = register("fortified_guard");
     public static final DeferredHolder<SoundEvent, SoundEvent> METAL_SHIELD_BLOCKED = register("metal_shield_blocked");
     public static final DeferredHolder<SoundEvent, SoundEvent> SWORD_BLOCKED = register("sword_blocked");
+    public static final DeferredHolder<SoundEvent, SoundEvent> WOODEN_SWORD_BLOCK = register("wooden_sword_block");
     public static final DeferredHolder<SoundEvent, SoundEvent> SHIELD_START_BLOCK = register("shield_start_block");
     public static final DeferredHolder<SoundEvent, SoundEvent> SWORD_START_BLOCK = register("sword_start_block");
     public static final DeferredHolder<SoundEvent, SoundEvent> SHIELD_PARRY = register("shield_parry");
@@ -51,6 +52,11 @@ public final class ModSounds {
      */
     public static void play(ServerPlayer player, DeferredHolder<SoundEvent, SoundEvent> sound,
             float volume, float basePitch) {
+        play(player, sound.get(), volume, basePitch);
+    }
+
+    /** Same cue playback contract for a resolved sound event (e.g. vanilla cues). */
+    public static void play(ServerPlayer player, SoundEvent sound, float volume, float basePitch) {
         float jitter = Config.soundPitchJitter();
         float pitch = basePitch;
         if (jitter > 0f) {
@@ -59,7 +65,7 @@ public final class ModSounds {
         }
         float scaledVolume = volume * Config.soundVolumeScale();
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
-                sound.get(), player.getSoundSource(), scaledVolume, pitch);
+                sound, player.getSoundSource(), scaledVolume, pitch);
     }
 
     private ModSounds() {}

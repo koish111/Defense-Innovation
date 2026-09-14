@@ -21,8 +21,18 @@ public final class ModCreativeTabs {
                     .title(Component.translatable("itemGroup.blockmod"))
                     .withTabsBefore(CreativeModeTabs.COMBAT)
                     .icon(() -> new ItemStack(ModItems.WOODEN_BUCKLER.get()))
-                    .displayItems((parameters, output) ->
-                            ModItems.allShields().forEach(shield -> output.accept(shield.get())))
+                    .displayItems((parameters, output) -> {
+                        // Roster order with the vanilla shield slotted between the netherite
+                        // buckler and the reinforced iron shield (user ruling 2026-09-14).
+                        boolean vanillaShieldPlaced = false;
+                        for (var shield : ModItems.allShields()) {
+                            if (!vanillaShieldPlaced && shield.get() == ModItems.REINFORCED_IRON_SHIELD.get()) {
+                                output.accept(new ItemStack(net.minecraft.world.item.Items.SHIELD));
+                                vanillaShieldPlaced = true;
+                            }
+                            output.accept(shield.get());
+                        }
+                    })
                     .build());
 
     private ModCreativeTabs() {}

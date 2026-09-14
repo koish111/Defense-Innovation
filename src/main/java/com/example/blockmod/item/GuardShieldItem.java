@@ -26,6 +26,16 @@ public class GuardShieldItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        appendGuardTooltip(stack, tooltip);
+        super.appendHoverText(stack, context, tooltip, flag);
+    }
+
+    /**
+     * FR-19 tooltip lines for any stack carrying a {@code blockmod:guard_profile} component.
+     * Shared with the client tooltip handler so third-party shields (e.g. {@code minecraft:shield}
+     * classified through the data map) render identical statistics. No-op without a profile.
+     */
+    public static void appendGuardTooltip(ItemStack stack, List<Component> tooltip) {
         @Nullable GuardProfile profile = stack.get(ModDataComponents.GUARD_PROFILE.get());
         if (profile == null) {
             return;
@@ -38,7 +48,6 @@ public class GuardShieldItem extends Item {
             tooltip.add(Component.translatable("tooltip.blockmod.power_guard", bonusPercent)
                     .withStyle(ChatFormatting.GOLD));
         }
-        super.appendHoverText(stack, context, tooltip, flag);
     }
 
     /** FR-19 colour tiers: < 0.3 gray, 0.3..0.6 white, > 0.6 gold. */

@@ -16,6 +16,11 @@
 			"blockmod:sword_blocked2"
 		]
 	},
+	"wooden_sword_block": {
+		"sounds": [
+			"blockmod:wooden_sword_block"
+		]
+	},
 	"shield_start_block": {
 		"sounds": [
 			"blockmod:shield_start_block"

@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "blockmod:shields",
+  "pattern": [
+    "PPP",
+    "PSP",
+    " P "
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:diamond"
+    },
+    "S": {
+      "item": "blockmod:reinforced_iron_shield"
+    }
+},
+  "result": {
+    "id": "blockmod:diamond_shield",
+    "count": 1
+  }
+}

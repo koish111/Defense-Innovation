@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "blockmod:shields",
+  "pattern": [
+    " P ",
+    "PSP",
+    " P "
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:diamond"
+    },
+    "S": {
+      "item": "blockmod:iron_buckler"
+    }
+  },
+  "result": {
+    "id": "blockmod:diamond_buckler",
+    "count": 1
+  }
+}
