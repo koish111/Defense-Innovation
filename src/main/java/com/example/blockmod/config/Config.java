@@ -117,7 +117,7 @@ public final class Config {
     private static final ModConfigSpec.ConfigValue<Integer> BASH_WINDUP_TICKS;
     private static final ModConfigSpec.ConfigValue<Double> BASH_RANGE_BLOCKS;
     private static final ModConfigSpec.ConfigValue<Integer> BASH_HALF_ANGLE_DEG;
-    private static final ModConfigSpec.ConfigValue<Double> BASH_CONSUME_STAMINA;
+    private static final ModConfigSpec.ConfigValue<Double> BASH_CONSUME_STAMINA_PERCENT;
     private static final ModConfigSpec.BooleanValue BASH_REQUIRES_POSITIVE_STAMINA;
 
     // ==================================================================
@@ -236,7 +236,7 @@ public final class Config {
         BUILDER.push("parry");
         SWORD_PARRY_WINDOW = defineInt("Parry window in ticks for swords.", "sword_parry_window", 5, 0, 20);
         BUCKLER_PARRY_WINDOW = defineInt("Parry window in ticks for bucklers.", "buckler_parry_window", 10, 0, 20);
-        STUN_DURATION = defineInt("Stun duration in ticks applied to a parried attacker.", "stun_duration", 20, 0, 200);
+        STUN_DURATION = defineInt("Stun duration in ticks applied to a parried attacker. 60 ticks = 3s.", "stun_duration", 60, 0, 200);
         STUN_RED_OUTLINE = BUILDER.comment("Designer ruling 2026-09-13: a stunned entity shows the vanilla glow outline in red (temporary scoreboard team). Stun world particles are always hidden.").define("stun_red_outline", true);
         PARRY_COOLDOWN_TICKS = defineInt("ADR-07: ticks after a parry (or guard raise) before a new window may open.", "parry_cooldown_ticks", 10, 0, 100);
         BOSS_PARRY_THRESHOLD = defineInt("Successful parries required to stun a boss.", "boss_parry_threshold", 3, 1, 20);
@@ -253,7 +253,7 @@ public final class Config {
         BASH_WINDUP_TICKS = defineInt("FR-15: shield bash windup in ticks.", "windup_ticks", 5, 0, 40);
         BASH_RANGE_BLOCKS = defineDouble("FR-15: shield bash reach in blocks.", "range_blocks", 3.0, 1.0, 10.0);
         BASH_HALF_ANGLE_DEG = defineInt("FR-15: half angle of the bash hit arc in degrees.", "half_angle_deg", 45, 5, 90);
-        BASH_CONSUME_STAMINA = defineDouble("O-19: stamina consumed per bash. 0 = free.", "consume_stamina", 0.0, 0.0, 40.0);
+        BASH_CONSUME_STAMINA_PERCENT = defineDouble("O-19: stamina consumed per bash, percentage of max_stamina (follows a dynamic max automatically). 0 = free.", "consume_stamina_percent", 20.0, 0.0, 100.0);
         BASH_REQUIRES_POSITIVE_STAMINA = BUILDER.comment("O-20: forbid shield bash while depleted. Default allows it.").define("requires_positive_stamina", false);
         BUILDER.pop();
 
@@ -433,7 +433,7 @@ public final class Config {
     public static int bashWindupTicks() { return BASH_WINDUP_TICKS.get(); }
     public static float bashRangeBlocks() { return BASH_RANGE_BLOCKS.get().floatValue(); }
     public static int bashHalfAngleDeg() { return BASH_HALF_ANGLE_DEG.get(); }
-    public static float bashConsumeStamina() { return BASH_CONSUME_STAMINA.get().floatValue(); }
+    public static float bashConsumeStamina() { return maxStamina() * BASH_CONSUME_STAMINA_PERCENT.get().floatValue() / 100.0F; }
     public static boolean bashRequiresPositiveStamina() { return BASH_REQUIRES_POSITIVE_STAMINA.get(); }
 
     // [power_guard]

@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "blockmod:shields",
+  "pattern": [
+    "BPB",
+    "BPB",
+    " P "
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:iron_ingot"
+    },
+    "B": {
+      "item": "minecraft:iron_block"
+    }
+  },
+  "result": {
+    "id": "blockmod:iron_great_shield",
+    "count": 1
+  }
+}

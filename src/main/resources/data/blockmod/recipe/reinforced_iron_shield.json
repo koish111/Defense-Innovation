@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "blockmod:shields",
+  "pattern": [
+    "PPP",
+    "PPP",
+    " P "
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:iron_ingot"
+    }
+  },
+  "result": {
+    "id": "blockmod:reinforced_iron_shield",
+    "count": 1
+  }
+}

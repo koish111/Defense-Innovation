@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "blockmod:shields",
+  "pattern": [
+    "PPP",
+    "PPP",
+    " P "
+  ],
+  "key": {
+    "P": {
+      "tag": "minecraft:logs"
+    }
+  },
+  "result": {
+    "id": "blockmod:wooden_great_shield",
+    "count": 1
+  }
+}

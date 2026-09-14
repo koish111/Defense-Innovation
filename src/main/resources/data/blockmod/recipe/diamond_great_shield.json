@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "blockmod:shields",
+  "pattern": [
+    "PIP",
+    "PSP",
+    " I "
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:diamond_block"
+    },
+    "S": {
+      "item": "blockmod:iron_great_shield"
+    },
+    "I": {
+      "item": "minecraft:diamond"
+    }
+  },
+  "result": {
+    "id": "blockmod:diamond_great_shield",
+    "count": 1
+  }
+}

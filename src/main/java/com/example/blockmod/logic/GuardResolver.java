@@ -17,8 +17,13 @@ import com.example.blockmod.registry.ModSounds;
 import com.example.blockmod.state.GuardStateData;
 import com.example.blockmod.state.StaminaData;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 import net.neoforged.bus.api.EventPriority;
@@ -224,9 +229,9 @@ public final class GuardResolver {
         }
 
         // 9. immediate sync; FR-22 MVP feedback: CRIT burst + the blocked cue
-        // (T-40: custom sounds split by equipment class; shield picks a random 1/2 variant).
-        ModSounds.play(ctx.player(), equipment.profile().type() == ShieldType.SWORD
-                ? ModSounds.SWORD_BLOCKED : ModSounds.METAL_SHIELD_BLOCKED, 0.8f, 1.0f);
+        // (T-40: custom sounds split by equipment class; shield picks a random 1/2 variant;
+        // 2026-09-13: wooden sword plays its dedicated cue, "wooden" shields the vanilla cue).
+        ModSounds.play(ctx.player(), blockedCue(equipment.stack(), equipment.profile().type()), 0.8f, 1.0f);
         if (ctx.player().level() instanceof net.minecraft.server.level.ServerLevel level) {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.CRIT,
                     ctx.player().getX(), ctx.player().getY() + 1.0, ctx.player().getZ(), 8, 0.3, 0.3, 0.3, 0.1);
@@ -235,6 +240,21 @@ public final class GuardResolver {
         BlockModLogger.info("GUARD", "result", "GUARDED", "player", ctx.player().getGameProfile().getName(),
                 "damage", ctx.damage(), "cost", cost, "gb", effectiveGb, "pfix", pfix,
                 "class", ctx.damageClass(), "pvp", ctx.pvp());
+    }
+
+    /**
+     * Blocked-cue mapping (2026-09-13): the wooden sword plays its dedicated
+     * {@code blockmod:wooden_sword_block} cue; any shield whose registry id
+     * contains {@code "wooden"} plays the vanilla shield-block sound; every
+     * other item keeps its equipment-class default.
+     */
+    private static SoundEvent blockedCue(ItemStack stack, ShieldType type) {
+        if (type == ShieldType.SWORD) {
+            return stack.is(Items.WOODEN_SWORD) ? ModSounds.WOODEN_SWORD_BLOCK.get() : ModSounds.SWORD_BLOCKED.get();
+        }
+        return BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath().contains("wooden")
+                ? SoundEvents.SHIELD_BLOCK
+                : ModSounds.METAL_SHIELD_BLOCKED.get();
     }
 
     /** §5.9.3: PvE vs PvP exponent from the pvp_mode whitelist. */
