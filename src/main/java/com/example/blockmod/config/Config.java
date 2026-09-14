@@ -87,6 +87,7 @@ public final class Config {
     private static final ModConfigSpec.ConfigValue<Double> EXPLOSION_KNOCKBACK_REDUCTION;
     private static final ModConfigSpec.ConfigValue<Double> MIN_GB;
     private static final ModConfigSpec.ConfigValue<Double> MAX_GB;
+    private static final ModConfigSpec.ConfigValue<Integer> GUARD_GRACE_TICKS;
 
     private static final ModConfigSpec.BooleanValue SWORD_BLOCKING_INCLUDE_SWORDS_TAG;
     private static final ModConfigSpec.ConfigValue<List<? extends String>> SWORD_BLOCKING_WHITELIST;
@@ -215,6 +216,7 @@ public final class Config {
         EXPLOSION_KNOCKBACK_REDUCTION = defineDouble("Knockback taken off a blocked explosion. Designer ruling 2026-08-30 supersedes ADR-12: 1.0 = blocked explosions ignore knockback entirely.", "explosion_knockback_reduction", 1.0, 0.0, 1.0);
         MIN_GB = defineDouble("ADR-09: lower clamp for guard strength.", "min_gb", 0.01, 0.0, 0.5);
         MAX_GB = defineDouble("ADR-09: upper clamp for guard strength. Must stay below 1.0.", "max_gb", 0.95, 0.5, 0.99);
+        GUARD_GRACE_TICKS = defineInt("Ruling 2026-09-14: after a paid guard settlement, further guarded hits within this window are cancelled but settle for free (no stamina, no durability, no regen-delay reset) — anti multi-hit drain (slime chains, pufferfish poison). 0 disables.", "guard_grace_ticks", 15, 0, 100);
         BUILDER.pop();
 
         BUILDER.comment("Sword blocking item selection. Shields keep their own guard profiles.").push("sword_blocking");
@@ -405,6 +407,9 @@ public final class Config {
         return min >= maxGb() ? 0.01f : min;
     }
     public static float maxGb() { return MAX_GB.get().floatValue(); }
+
+    // [guard] settlement
+    public static int guardGraceTicks() { return GUARD_GRACE_TICKS.get(); }
 
     public static SwordBlockingConfig swordBlocking() { return swordBlocking; }
 

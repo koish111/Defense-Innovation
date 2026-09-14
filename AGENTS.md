@@ -125,7 +125,7 @@ Use the NeoForge **Attachment API** (`NeoForgeRegistries.ATTACHMENT_TYPES`), nev
 | Attachment | Serialized | Contents |
 |:---|:---|:---|
 | `blockmod:stamina` | **Yes** | `stamina`, `lastEventTick` |
-| `blockmod:guard_state` | No | `guarding`, `parryWindowEndTick`, `parryReadyTick`, `powerGuarding`, `powerGuardReadyTick`, `bashWindupEndTick`, `bashReadyTick`, `activeMoveMalusUuid`, `wasDepleted` |
+| `blockmod:guard_state` | No | `guarding`, `parryWindowEndTick`, `parryReadyTick`, `powerGuarding`, `powerGuardReadyTick`, `bashWindupEndTick`, `bashReadyTick`, `guardGraceEndTick`, `activeMoveMalusUuid`, `wasDepleted` |
 
 Item statistics (guard strength, shield type, parry window, move malus, power-guard bonus) live in the **`blockmod:guard_profile` data component** on the `ItemStack`, so datapacks and third-party items can override them without code.
 
@@ -150,6 +150,8 @@ These are the rules that define the mod. Violating any of them is a correctness 
 | 6 | Otherwise | **4.0/s** | Yes |
 
 - `stamina == 0` counts as **depleted** (8/s), not normal. This keeps the rate monotonic in stamina.
+
+**Guard grace window (ruling 2026-09-14):** a guarded hit that PAYS (full settlement: stamina cost, durability, regen-delay reset, great-shield shove, block cue) opens a grace window of `guard_grace_ticks` (default 15, `guard.grace`… see `guard_grace_ticks`; 0 disables) stored as `guardGraceEndTick` in `GuardStateData`. Further GUARDED hits landing inside the window are still **cancelled** (protection never lapses), but settle **for free** — no stamina, no durability, no regen-delay reset, no shove, no cue. Rationale: a cancelled damage event never reaches vanilla's invulnerable-frame logic, so multi-hit damage (slime chains, pufferfish poison, swarms) used to drain one full cost per hit plus a regen-delay refresh each — an unwinnable stamina drain the settlement rhythm never intended. The free hit must NOT re-open the window (worst case stays "one paid settlement per window"), and dropping the guard (`setGuarding(false)`) clears it so a re-raised shield cannot inherit free hits. Pure rule: `GuardRules#inGuardGrace` (unit-tested); behaviour: `M2VERIFY guard 宽限` cases.
 
 ### 6.2 Depletion (v2.0) — Guard Break has been REMOVED
 
