@@ -159,7 +159,7 @@ Depletion is a **derived property** (`stamina <= 0`). It has exactly three conse
 
 1. Blocking does not work — damage resolves normally.
 2. Parrying does not work — even inside the parry window.
-3. **Movement-speed penalty is removed**, even while the player still holds right-click.
+3. **Movement-speed penalty is removed**, even while the player still holds the guard key.
 
 Depletion must **never**:
 
@@ -214,19 +214,21 @@ A hit is blocked only if **all** of these hold: target is a `ServerPlayer`, a `G
 
 - A successful parry: cancels damage, costs **zero stamina**, costs **zero durability**, and counters.
 - Counter rules: `MELEE` → 1s stun on the attacker. `PROJECTILE` → deflect the projectile, **do not stun the shooter** and **do not reflect it back**.
-- **One parry per raise.** After a successful parry the window closes immediately; reopening requires releasing right-click and waiting `parry_cooldown_ticks` (10) to prevent spam.
+- **One parry per raise.** After a successful parry the window closes immediately; reopening requires releasing the guard key and waiting `parry_cooldown_ticks` (10) to prevent spam.
 - Bosses require `boss_parry_threshold` (3) successful parries before being stunned; the counter expires after 200 ticks.
 
 ### 6.7 Shield Bash (medium shields) and Power Guard
 
 | | Shield Bash | Power Guard |
 |:---|:---|:---|
-| Trigger | Left click while guarding | Hold the PG key (default **Left Ctrl**) and right-click; either key may be pressed first. Guard entry is sent before PG activation. |
+| Trigger | Bash key while guarding | Hold the PG key (default **Left Ctrl**) and the guard key; either key may be pressed first. Guard entry is sent before PG activation. |
 | Cost | 8.0 damage, 4.0 blocks knockback, plus `consume_stamina_percent` of `max_stamina` (default 20%, O-19; absolute value follows a dynamic max) | Existing `stamina_drain_percent` plus `stamina_drain_flat`, charged once per player; no regeneration during PG |
-| Timing | 5-tick windup, 20-tick cooldown **counted from resolution** | Ends on key release, right-click release, or `stamina <= 0`; then a 60-tick (`power_guard.cooldown_ticks`, ruling 2026-09-07) re-activation lockout |
+| Timing | 5-tick windup, 20-tick cooldown **counted from resolution** | Ends on key release, guard-key release, or `stamina <= 0`; then a 60-tick (`power_guard.cooldown_ticks`, ruling 2026-09-07) re-activation lockout |
 | Extra | keeps guarding | disables jump, suspends regeneration |
 
 Power Guard **requires `stamina > 0` to activate**. It is not available while depleted.
+
+**Key bindings (ruling 2026-09-15):** every combat action is a remappable NeoForge `KeyMapping` in the `key.categories.blockmod` category — `key.blockmod.guard` (hold to guard, default **right mouse button**), `key.blockmod.shield_bash` (press to bash, default **left mouse button**), `key.blockmod.parry` (the raise-to-parry key, default **right mouse button**), `key.blockmod.power_guard` (default **Left Ctrl**). Guard intent is `GUARD || PARRY` held down, so at the defaults the scheme is byte-identical to the pre-2026-09-15 hardcoded right-click scheme; the server keeps deciding the parry window at guard entry (the parry key is not a separate server action). Sampling runs in `ClientTickEvent.Pre` — *before* this tick's `handleKeybinds` consumes the vanilla use key, preserving the delegation ordering the old `MouseButton.Pre` handler had. A guard/parry binding that IS the vanilla use key (`KeyMapping#same`) keeps the first-press targeted-interaction delegation; a binding anywhere else enters guard directly (`guardUseAccepted` granted at sampling time). Equipment changes still require a **fresh press edge** (`stalePress`/`freshPress` in `ClientGuardInputHandler`) — a held key cannot ride a swap into a new guard. Bash fires from `SHIELD_BASH#consumeClick()` drains (works for keyboard rebinding too; clicks during a screen are discarded since the guard intent cannot be live there). All bindings use `KeyConflictContext.IN_GAME`, so `isDown()` self-clears while any screen is open.
 
 **Dual Power Guard (2026-09-13 ruling, revising 2026-09-12):** Power Guard is **great-shield-exclusive** with **mainhand-lead semantics** — when the mainhand carries a guardable item, THAT item must be a great shield for PG (a sword/buckler/medium mainhand keeps normal guard only, so a sword mainhand plus any offhand shield — great included — can never activate PG; the 2026-09-12 "any two guardable items" branch is revoked). With no mainhand guard item, a great shield held alone in the offhand keeps PG. A great-shield mainhand may still combine with any guardable offhand (sword, buckler, medium or second great shield). Resolve each participating item's effective guard strength (including its great-shield PG bonus), then combine as `1 - (1 - primaryGb) * (1 - secondaryGb)` and clamp to the configured guard-strength bounds. Continuous drain and cooldown use the existing PG config once. Each participating shield pays the normal durability cost; swords and successful parries pay none. Parry, bash, movement malus and great-shield shove follow the primary item (the guard-slot resolution — unchanged by the PG ruling). Releasing Ctrl lowers the secondary hand while retaining normal guard. Replacing/removing a secondary item or changing its profile ends PG and starts cooldown; invalidating the primary drops guard entirely.
 

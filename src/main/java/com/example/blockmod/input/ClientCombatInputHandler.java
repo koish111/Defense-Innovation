@@ -14,16 +14,19 @@ import net.minecraft.client.player.LocalPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
  * T-36/T-37 client side: the combat intents beyond guarding.
  *
  * <ul>
- *   <li><b>Shield bash</b> (FR-15): a left-click while the guard intent is sent
- *       with a medium shield triggers {@code shield_bash}; the server validates
- *       the cooldown and the windup.</li>
+ *   <li><b>Shield bash</b> (FR-15): a {@code SHIELD_BASH} press while the guard
+ *       intent is sent with a medium shield triggers {@code shield_bash}; the
+ *       server validates the cooldown and the windup. Ruling 2026-09-15: the
+ *       key is remappable, defaulting to the vanilla attack key (left mouse
+ *       button), so the default scheme is unchanged. Clicks are consumed per
+ *       tick ({@code consumeClick}), which follows keyboard rebinding too.</li>
  *   <li><b>Power guard</b> (FR-16): the Left Ctrl binding (remappable) combines
  *       with guard intent and requires a great shield as the primary guard
  *       item (2026-09-13 ruling). Guard entry is sent first regardless of
@@ -32,24 +35,28 @@ import net.neoforged.neoforge.network.PacketDistributor;
  */
 @EventBusSubscriber(modid = BlockMod.MODID, value = Dist.CLIENT)
 public final class ClientCombatInputHandler {
-    private static final int BUTTON_ATTACK = 0;
-
     private static boolean powerGuardActive;
 
+    /**
+     * Bash sampling runs in {@code ClientTickEvent.Pre}: clicks are drained
+     * unconditionally (a click during a screen is discarded — the guard intent
+     * cannot be live there), so no stale click survives a screen swap
+     * ({@code KeyMapping#releaseAll} flushes the counters anyway).
+     */
     @SubscribeEvent
-    static void onMouseButton(InputEvent.MouseButton.Pre event) {
-        if (event.getButton() != BUTTON_ATTACK || event.getAction() != 1) {
-            return; // left-click press only
-        }
+    static void onClientTickPre(ClientTickEvent.Pre event) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
-        if (player == null || !ClientGuardInputHandler.isGuardIntentSent()) {
-            return;
-        }
-        boolean mediumShield = player.getOffhandItem().is(ModTags.ITEMS_MEDIUM_SHIELDS)
-                || player.getMainHandItem().is(ModTags.ITEMS_MEDIUM_SHIELDS);
-        if (mediumShield) {
-            PacketDistributor.sendToServer(new ShieldBashPayload());
+        while (ModKeyMappings.SHIELD_BASH.consumeClick()) {
+            if (player == null || minecraft.getOverlay() != null
+                    || !ClientGuardInputHandler.isGuardIntentSent()) {
+                continue;
+            }
+            boolean mediumShield = player.getOffhandItem().is(ModTags.ITEMS_MEDIUM_SHIELDS)
+                    || player.getMainHandItem().is(ModTags.ITEMS_MEDIUM_SHIELDS);
+            if (mediumShield) {
+                PacketDistributor.sendToServer(new ShieldBashPayload());
+            }
         }
     }
 

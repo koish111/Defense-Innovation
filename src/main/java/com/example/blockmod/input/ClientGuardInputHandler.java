@@ -8,9 +8,11 @@ import com.example.blockmod.logic.GuardRules;
 import com.example.blockmod.network.GuardInputPayload;
 import com.example.blockmod.registry.ModDataComponents;
 import com.example.blockmod.registry.ModEffects;
+import com.example.blockmod.registry.ModKeyMappings;
 
 import java.util.Objects;
 
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -30,17 +32,23 @@ import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * T-27 client side: captures the right-click hold state and reports it as intent
+ * T-27 client side: captures the guard-key hold state and reports it as intent
  * (FR-23). The client never decides guarding — it reports and heartbeats:
  *
  * <ul>
- *   <li>{@code MouseButton.Pre} button 1 press/release flips the desired state;</li>
+ *   <li>guard intent = {@code GUARD} or {@code PARRY} held down (ruling
+ *       2026-09-15: both are remappable, both default to the vanilla use key /
+ *       right mouse button, so the default scheme is unchanged);</li>
  *   <li>state changes are sent immediately, a held guard is heartbeaten every
  *       {@code state_heartbeat_ticks} (R-07);</li>
  *   <li>the intent is only sent while a plausibly guardable item is held — item
  *       tags, guard profiles and sword selection config are synced, and the
  *       shared equipment resolver covers both hands and datapack extensions;</li>
- *   <li>Native target interactions run before the guard item-use fallback.</li>
+ *   <li>a guard-binding that IS the vanilla use key keeps the first-press
+ *       delegation (targeted interactions run before the guard item-use
+ *       fallback); a binding anywhere else enters guard directly;</li>
+ *   <li>an equipment change cancels the live intent and requires a fresh press
+ *       (R-07: no re-entry from a held key across an equipment swap);</li>
  *   <li>2026-09-11 ruling (guard interaction lockout): while the guard intent
  *       is live, ALL vanilla interactions (attack / dig / use / interact) and
  *       their swing animations are suppressed client-side; the server
@@ -49,31 +57,58 @@ import net.neoforged.neoforge.network.PacketDistributor;
  */
 @EventBusSubscriber(modid = BlockMod.MODID, value = Dist.CLIENT)
 public final class ClientGuardInputHandler {
-    private static final int BUTTON_USE = 1;
-    private static final int ACTION_PRESS = 1;
-
     private static boolean desireGuard;
     private static boolean guardUseAccepted;
+    private static boolean prevKeysDown;
+    private static boolean freshPress;
+    private static boolean stalePress;
     private static boolean sentState;
     private static int ticksSinceSend;
     private static ItemStack sentGuardStack = ItemStack.EMPTY;
 
+    /**
+     * Key sampling runs in {@code ClientTickEvent.Pre} — before this tick's
+     * {@code handleKeybinds} consumes the vanilla use key, so a guard binding
+     * on the use key observes the same press that fires the delegation event
+     * (the old {@code MouseButton.Pre} handler had the identical ordering).
+     */
     @SubscribeEvent
-    static void onMouseButton(InputEvent.MouseButton.Pre event) {
-        if (event.getButton() != BUTTON_USE) {
-            return;
-        }
+    static void onClientTickPre(ClientTickEvent.Pre event) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
-        if (player == null) {
-            return;
+        boolean guardDown = player != null && ModKeyMappings.GUARD.isDown();
+        boolean parryDown = player != null && ModKeyMappings.PARRY.isDown();
+        boolean down = guardDown || parryDown;
+        if (down && !prevKeysDown) {
+            freshPress = true;
         }
-        if (event.getAction() == ACTION_PRESS) {
-            desireGuard = true;
-        } else if (event.getAction() == 0) {
+        prevKeysDown = down;
+        if (!down) {
             desireGuard = false;
             guardUseAccepted = false;
+            freshPress = false;
+            stalePress = false;
+            return;
         }
+        desireGuard = true;
+        // The hold keys never feed vanilla's click loops — drain their click
+        // counters so they cannot accumulate across releases.
+        while (ModKeyMappings.GUARD.consumeClick()) {}
+        while (ModKeyMappings.PARRY.consumeClick()) {}
+        // A held key that is NOT the vanilla use key cannot delegate through
+        // InteractionKeyMappingTriggered — it enters guard directly. If any
+        // held guard key IS the use key, the first press must still wait for
+        // the delegation result (targeted interaction first, FR-23).
+        if (!guardUseAccepted
+                && !(guardDown && isUseKeyBinding(minecraft, ModKeyMappings.GUARD))
+                && !(parryDown && isUseKeyBinding(minecraft, ModKeyMappings.PARRY))) {
+            guardUseAccepted = true;
+        }
+    }
+
+    /** True when {@code binding} is currently bound to the vanilla use key. */
+    private static boolean isUseKeyBinding(Minecraft minecraft, KeyMapping binding) {
+        return binding.same(minecraft.options.keyUse);
     }
 
     @SubscribeEvent
@@ -92,12 +127,18 @@ public final class ClientGuardInputHandler {
         if (sentState && !sameGuardEquipment(activeGuardStack(player), sentGuardStack)) {
             desireGuard = false;
             guardUseAccepted = false;
+            // R-07: an equipment swap must not be ridden by a held key — the
+            // next send waits for a fresh press edge (Pre re-asserts desire,
+            // stalePress gates it until the edge arrives).
+            stalePress = true;
         }
 
         // FR-05: while stunned, guard intent is suppressed client-side — the server
         // re-validates and force-drops anyway (authoritative), this only avoids the
         // rejected-packet churn and the enter/exit flicker in the same tick window.
-        boolean wantSend = desireGuard && guardUseAccepted && wantsGuard(minecraft, player);
+        boolean pressUsable = !stalePress || freshPress;
+        boolean wantSend = desireGuard && guardUseAccepted && pressUsable
+                && wantsGuard(minecraft, player);
         if (!wantSend) guardUseAccepted = false;
 
         boolean stateChanged = wantSend != sentState;
@@ -107,6 +148,8 @@ public final class ClientGuardInputHandler {
             sentState = wantSend;
             sentGuardStack = wantSend ? activeGuardStack(player) : ItemStack.EMPTY;
             ticksSinceSend = 0;
+            freshPress = false;
+            stalePress = false;
         }
         ClientCombatInputHandler.updatePowerGuardIntent(player, wantSend);
     }
@@ -235,6 +278,9 @@ public final class ClientGuardInputHandler {
         ClientCombatInputHandler.resetPowerGuardIntent();
         desireGuard = false;
         guardUseAccepted = false;
+        prevKeysDown = false;
+        freshPress = false;
+        stalePress = false;
         sentState = false;
         ticksSinceSend = 0;
         sentGuardStack = ItemStack.EMPTY;

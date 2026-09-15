@@ -15,5 +15,8 @@
   "tooltip.blockmod.guard_strength": "防御强度: %s%%",
   "tooltip.blockmod.power_guard": "强力防御: +%s%%",
   "key.categories.blockmod": "防御革新",
-  "key.blockmod.power_guard": "强力防御"
+  "key.blockmod.power_guard": "强力防御",
+  "key.blockmod.guard": "格挡",
+  "key.blockmod.shield_bash": "盾击",
+  "key.blockmod.parry": "招架"
 }

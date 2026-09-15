@@ -15,5 +15,8 @@
   "tooltip.blockmod.guard_strength": "Guard Strength: %s%%",
   "tooltip.blockmod.power_guard": "Fortified Guard: +%s%%",
   "key.categories.blockmod": "Block & Parry",
-  "key.blockmod.power_guard": "Fortified Guard"
+  "key.blockmod.power_guard": "Fortified Guard",
+  "key.blockmod.guard": "Guard",
+  "key.blockmod.shield_bash": "Shield Bash",
+  "key.blockmod.parry": "Parry"
 }
