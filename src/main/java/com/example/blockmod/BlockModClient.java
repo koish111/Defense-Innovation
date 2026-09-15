@@ -27,5 +27,8 @@ public class BlockModClient {
     @SubscribeEvent
     static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(ModKeyMappings.POWER_GUARD);
+        event.register(ModKeyMappings.GUARD);
+        event.register(ModKeyMappings.SHIELD_BASH);
+        event.register(ModKeyMappings.PARRY);
     }
 }
