@@ -17,15 +17,20 @@ public class BlockModClient {
     @SubscribeEvent
     static void onClientSetup(FMLClientSetupEvent event) {
         BlockModLogger.info("CLIENT_SETUP", "dist", "client");
-        // Main thread (model bake reads the properties map): re-register the
-        // vanilla "blocking" model property so guard shields block-pose, and
-        // register the buckler guard-raise property for the raise variants.
-        event.enqueueWork(ShieldBlockPoseProperty::register);
-        event.enqueueWork(BucklerGuardRaiseProperty::register);
+
+    }
+
+    @SubscribeEvent
+    static void onRegisterItemConditions(net.neoforged.neoforge.client.event.RegisterConditionalItemModelPropertyEvent event) {
+        event.register(net.minecraft.resources.Identifier.fromNamespaceAndPath(BlockMod.MODID, "blocking"),
+                ShieldBlockPoseProperty.MAP_CODEC);
+        event.register(net.minecraft.resources.Identifier.fromNamespaceAndPath(BlockMod.MODID, "guard_raise"),
+                BucklerGuardRaiseProperty.MAP_CODEC);
     }
 
     @SubscribeEvent
     static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+        event.registerCategory(ModKeyMappings.CATEGORY);
         event.register(ModKeyMappings.POWER_GUARD);
         event.register(ModKeyMappings.GUARD);
         event.register(ModKeyMappings.SHIELD_BASH);

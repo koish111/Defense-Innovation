@@ -5,7 +5,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import com.example.blockmod.BlockMod;
 
@@ -18,7 +18,7 @@ public record PowerGuardPayload(
         boolean active) implements CustomPacketPayload {
 
     public static final Type<PowerGuardPayload> TYPE =
-            new Type<>(ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "power_guard"));
+            new Type<>(Identifier.fromNamespaceAndPath(BlockMod.MODID, "power_guard"));
 
     public static final StreamCodec<ByteBuf, PowerGuardPayload> STREAM_CODEC =
             StreamCodec.composite(ByteBufCodecs.BOOL, PowerGuardPayload::active, PowerGuardPayload::new);

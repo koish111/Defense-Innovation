@@ -9,7 +9,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  * status flag can be milked or cleared away (v2.0).
  */
 public final class StaminaData {
-    public static final Codec<StaminaData> CODEC = RecordCodecBuilder.create(i -> i.group(
+    public static final com.mojang.serialization.MapCodec<StaminaData> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             Codec.FLOAT.fieldOf("stamina").forGetter(StaminaData::stamina),
             Codec.LONG.fieldOf("last_event_tick").forGetter(StaminaData::lastEventTick)
     ).apply(i, StaminaData::new));

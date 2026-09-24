@@ -5,7 +5,7 @@ import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.data.GuardProfile;
 import com.example.blockmod.state.GuardStateData;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -22,8 +22,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
  */
 public final class MovementService {
     /** Lazy so that class initialization stays free of Minecraft types (pure unit tests). */
-    private static ResourceLocation malusId() {
-        return ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "guard_move_malus");
+    private static Identifier malusId() {
+        return Identifier.fromNamespaceAndPath(BlockMod.MODID, "guard_move_malus");
     }
 
     /** FR-17 decision table (v2.0) — pure rule lives in {@link GuardRules} (unit-test target). */
@@ -44,7 +44,7 @@ public final class MovementService {
     public static void remove(ServerPlayer player, GuardStateData guardState) {
         AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speed != null && speed.removeModifier(malusId())) {
-            BlockModLogger.info("MOVE_MALUS", "action", "removed", "player", player.getGameProfile().getName());
+            BlockModLogger.info("MOVE_MALUS", "action", "removed", "player", player.getGameProfile().name());
         }
         guardState.setActiveMoveMalusId(null);
     }
@@ -57,7 +57,7 @@ public final class MovementService {
         }
         speed.removeModifier(malusId());
         speed.addTransientModifier(new AttributeModifier(malusId(), moveSpeedMalus, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
-        BlockModLogger.info("MOVE_MALUS", "action", "mounted", "player", player.getGameProfile().getName(),
+        BlockModLogger.info("MOVE_MALUS", "action", "mounted", "player", player.getGameProfile().name(),
                 "malus", moveSpeedMalus);
     }
 

@@ -57,7 +57,7 @@ public final class FoodStaminaHandler {
             return; // hunger was not full when the eating started
         }
         StaminaService.addStamina(player, captured.nutrition());
-        BlockModLogger.info("FOOD_STAMINA", "player", player.getGameProfile().getName(),
+        BlockModLogger.info("FOOD_STAMINA", "player", player.getGameProfile().name(),
                 "nutrition", captured.nutrition(), "foodAtStart", captured.foodLevelAtStart());
     }
 

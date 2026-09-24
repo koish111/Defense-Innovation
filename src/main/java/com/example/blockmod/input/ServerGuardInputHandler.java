@@ -59,12 +59,12 @@ public final class ServerGuardInputHandler {
         }
         GuardEquipment equipment = payload.guarding() ? GuardEquipmentResolver.resolve(player) : null;
         if (payload.guarding() && equipment == null) {
-            BlockModLogger.warn("GUARD_INPUT", "action", "rejected", "player", player.getGameProfile().getName(),
+            BlockModLogger.warn("GUARD_INPUT", "action", "rejected", "player", player.getGameProfile().name(),
                     "reason", "no guardable equipment");
             return; // E-11: no shield/sword — ignore the request
         }
         if (payload.guarding() && MixinHooks.isStunned(player)) {
-            BlockModLogger.warn("GUARD_INPUT", "action", "rejected", "player", player.getGameProfile().getName(),
+            BlockModLogger.warn("GUARD_INPUT", "action", "rejected", "player", player.getGameProfile().name(),
                     "reason", "stunned");
             return; // FR-05: a stunned player can neither raise nor hold a guard
         }
@@ -83,14 +83,14 @@ public final class ServerGuardInputHandler {
                 // T-40: the raise cue splits by equipment class (sword vs shield).
                 ModSounds.play(player, equipment.profile().type() == ShieldType.SWORD
                         ? ModSounds.SWORD_START_BLOCK : ModSounds.SHIELD_START_BLOCK, 0.8f, 1.0f);
-                BlockModLogger.info("GUARD_INPUT", "action", "enter", "player", player.getGameProfile().getName(),
+                BlockModLogger.info("GUARD_INPUT", "action", "enter", "player", player.getGameProfile().name(),
                         "hand", equipment.hand());
             } else {
                 MovementService.remove(player, guardState);
                 com.example.blockmod.logic.PowerGuardService.disarm(player, guardState, now); // §5.7: PG ends with the guard
                 // T-34/ADR-07: the re-entry cooldown anchors to the release moment.
                 com.example.blockmod.logic.ParryService.closeWindowOnRelease(player, guardState, now);
-                BlockModLogger.info("GUARD_INPUT", "action", "exit", "player", player.getGameProfile().getName());
+                BlockModLogger.info("GUARD_INPUT", "action", "exit", "player", player.getGameProfile().name());
             }
         }
         LAST_INPUT_TICK.put(player.getUUID(), now);
@@ -199,14 +199,14 @@ public final class ServerGuardInputHandler {
             if (last == null || now - last > Config.guardTimeoutTicks()) {
                 dropGuard(player, guardState, now);
                 BlockModLogger.warn("GUARD_INPUT", "action", "timeout_drop", "player",
-                        player.getGameProfile().getName());
+                        player.getGameProfile().name());
             } else if (MixinHooks.isStunned(player)) {
                 // FR-05: the stun force-lowers the guard — no block, no parry window,
                 // no PG. Runs every tick the stun + guard pair holds, so the guard can
                 // never survive a stun regardless of what the client keeps sending.
                 dropGuard(player, guardState, now);
                 BlockModLogger.warn("GUARD_INPUT", "action", "stun_drop", "player",
-                        player.getGameProfile().getName());
+                        player.getGameProfile().name());
             }
         }
     }
@@ -223,7 +223,7 @@ public final class ServerGuardInputHandler {
                 && guardState.guardType() == GuardEquipmentResolver.typeOf(guardState.guardStack(), Config.swordBlocking());
         if (!sameEquipment) {
             dropGuard(player, guardState, now);
-            BlockModLogger.info("GUARD_INPUT", "action", "equipment_drop", "player", player.getGameProfile().getName());
+            BlockModLogger.info("GUARD_INPUT", "action", "equipment_drop", "player", player.getGameProfile().name());
         } else {
             com.example.blockmod.logic.PowerGuardService.reconcileEquipment(player, guardState, now);
         }

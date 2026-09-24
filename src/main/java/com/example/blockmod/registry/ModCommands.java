@@ -36,7 +36,7 @@ public final class ModCommands {
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .executes(ctx -> get(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
                         .then(Commands.literal("set")
-                                .requires(src -> src.hasPermission(2))
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                                 .then(Commands.argument("value", FloatArgumentType.floatArg())
                                         .executes(ctx -> set(ctx.getSource(), ctx.getSource().getPlayerOrException(),
                                                 FloatArgumentType.getFloat(ctx, "value")))
@@ -49,12 +49,12 @@ public final class ModCommands {
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .executes(ctx -> fill(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))))
                 .then(Commands.literal("deplete")
-                        .requires(src -> src.hasPermission(2))
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .executes(ctx -> deplete(ctx.getSource(), ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(ctx -> deplete(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
                 .then(Commands.literal("debug")
-                        .requires(src -> src.hasPermission(2))
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .executes(ctx -> debug(ctx.getSource(), ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(ctx -> debug(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))));
@@ -64,7 +64,7 @@ public final class ModCommands {
         StaminaData stamina = target.getData(ModAttachments.STAMINA.get());
         float max = Config.maxStamina();
         source.sendSuccess(() -> Component.literal(String.format("[BlockParry] %s stamina = %.2f / %.2f%s",
-                target.getGameProfile().getName(), stamina.stamina(), max,
+                target.getGameProfile().name(), stamina.stamina(), max,
                 stamina.isDepleted() ? " (depleted)" : "")), false);
         return Math.round(stamina.stamina() * 10.0f);
     }
@@ -72,7 +72,7 @@ public final class ModCommands {
     private static int set(CommandSourceStack source, ServerPlayer target, float value) {
         StaminaService.setStamina(target, value);
         source.sendSuccess(() -> Component.literal(String.format(
-                "[BlockParry] set %s stamina = %.2f", target.getGameProfile().getName(), value)), true);
+                "[BlockParry] set %s stamina = %.2f", target.getGameProfile().name(), value)), true);
         return 1;
     }
 
@@ -80,7 +80,7 @@ public final class ModCommands {
         float max = Config.maxStamina();
         StaminaService.setStamina(target, max);
         source.sendSuccess(() -> Component.literal(String.format(
-                "[BlockParry] filled %s stamina to %.2f", target.getGameProfile().getName(), max)), true);
+                "[BlockParry] filled %s stamina to %.2f", target.getGameProfile().name(), max)), true);
         return 1;
     }
 
@@ -90,7 +90,7 @@ public final class ModCommands {
         StaminaService.setStamina(target, 0.0f);
         SyncThrottler.forceSync(target);
         source.sendSuccess(() -> Component.literal(String.format(
-                "[BlockParry] depleted %s", target.getGameProfile().getName())), true);
+                "[BlockParry] depleted %s", target.getGameProfile().name())), true);
         return 1;
     }
 
@@ -102,7 +102,7 @@ public final class ModCommands {
                 com.example.blockmod.logic.GuardEquipmentResolver.resolve(target);
         long now = target.level().getGameTime();
         String[] snapshot = {
-                "[BlockParry] debug snapshot for " + target.getGameProfile().getName() + " (tick " + now + ")",
+                "[BlockParry] debug snapshot for " + target.getGameProfile().name() + " (tick " + now + ")",
                 "  stamina = " + String.format("%.2f / %.2f", stamina.stamina(), Config.maxStamina())
                         + (stamina.isDepleted() ? "  [DEPLETED]" : ""),
                 "  lastEventTick = " + stamina.lastEventTick(),

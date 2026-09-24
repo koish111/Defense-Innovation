@@ -102,7 +102,7 @@ public final class GuardResolver {
                     if (freeSettlement) {
                         if (Config.verboseLogging()) {
                             BlockModLogger.info("GUARD", "result", "GRACE", "player",
-                                    player.getGameProfile().getName(), "damage", ctx.damage());
+                                    player.getGameProfile().name(), "damage", ctx.damage());
                         }
                     } else {
                         applyGuardCost(ctx);
@@ -130,7 +130,7 @@ public final class GuardResolver {
         }
         if (GuardEquipmentResolver.resolve(player) != null) {
             event.setBlocked(false);
-            event.setShieldDamage(0.0f);
+            event.setShieldDamage(0);
         }
     }
 
@@ -237,7 +237,7 @@ public final class GuardResolver {
                     ctx.player().getX(), ctx.player().getY() + 1.0, ctx.player().getZ(), 8, 0.3, 0.3, 0.3, 0.1);
         }
         SyncThrottler.forceSync(ctx.player());
-        BlockModLogger.info("GUARD", "result", "GUARDED", "player", ctx.player().getGameProfile().getName(),
+        BlockModLogger.info("GUARD", "result", "GUARDED", "player", ctx.player().getGameProfile().name(),
                 "damage", ctx.damage(), "cost", cost, "gb", effectiveGb, "pfix", pfix,
                 "class", ctx.damageClass(), "pvp", ctx.pvp());
     }
@@ -253,7 +253,7 @@ public final class GuardResolver {
             return stack.is(Items.WOODEN_SWORD) ? ModSounds.WOODEN_SWORD_BLOCK.get() : ModSounds.SWORD_BLOCKED.get();
         }
         return BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath().contains("wooden")
-                ? SoundEvents.SHIELD_BLOCK
+                ? SoundEvents.SHIELD_BLOCK.value()
                 : ModSounds.METAL_SHIELD_BLOCKED.get();
     }
 

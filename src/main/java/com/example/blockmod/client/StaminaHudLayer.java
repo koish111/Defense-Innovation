@@ -4,8 +4,8 @@ import com.example.blockmod.BlockMod;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 
 import net.neoforged.api.distmarker.Dist;
@@ -22,13 +22,13 @@ import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
  */
 @EventBusSubscriber(modid = BlockMod.MODID, value = Dist.CLIENT)
 public final class StaminaHudLayer {
-    private static final ResourceLocation EMPTY_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier EMPTY_TEXTURE = Identifier.fromNamespaceAndPath(
             BlockMod.MODID, "textures/gui/hud/empty_stamina_bar.png");
-    private static final ResourceLocation DEPLETED_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier DEPLETED_TEXTURE = Identifier.fromNamespaceAndPath(
             BlockMod.MODID, "textures/gui/hud/guard_break_stamina_bar.png");
-    private static final ResourceLocation FILLED_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier FILLED_TEXTURE = Identifier.fromNamespaceAndPath(
             BlockMod.MODID, "textures/gui/hud/stamina_bar.png");
-    private static final ResourceLocation REDUCING_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+    private static final Identifier REDUCING_TEXTURE = Identifier.fromNamespaceAndPath(
             BlockMod.MODID, "textures/gui/hud/stamina_bar_reducing.png");
 
     private static final int TEXTURE_WIDTH = 90;
@@ -48,7 +48,7 @@ public final class StaminaHudLayer {
     @SubscribeEvent
     static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
         event.registerAboveAll(
-                ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "stamina_hud"),
+                Identifier.fromNamespaceAndPath(BlockMod.MODID, "stamina_hud"),
                 StaminaHudLayer::render);
     }
 
@@ -57,7 +57,7 @@ public final class StaminaHudLayer {
         ClientGuardState.onClientTick(event);
     }
 
-    private static void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
+    private static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
         if (player == null || minecraft.options.hideGui || player.isSpectator()) {
@@ -116,10 +116,10 @@ public final class StaminaHudLayer {
 
     }
 
-    private static void blitScaled(GuiGraphics graphics, ResourceLocation texture,
+    private static void blitScaled(GuiGraphicsExtractor graphics, Identifier texture,
             int x, int y, int width, int height,
             int textureWidth, int textureHeight) {
-        graphics.blit(texture, x, y, width, height, 0.0f, 0.0f,
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, texture, x, y, 0.0f, 0.0f, width, height,
                 textureWidth, textureHeight, textureWidth, textureHeight);
     }
 

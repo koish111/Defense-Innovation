@@ -5,7 +5,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import com.example.blockmod.BlockMod;
 
@@ -21,7 +21,7 @@ public record StaminaSyncPayload(
         int parryRemainTicks) implements CustomPacketPayload {
 
     public static final Type<StaminaSyncPayload> TYPE =
-            new Type<>(ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "stamina_sync"));
+            new Type<>(Identifier.fromNamespaceAndPath(BlockMod.MODID, "stamina_sync"));
 
     public static final StreamCodec<ByteBuf, StaminaSyncPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.FLOAT, StaminaSyncPayload::stamina,

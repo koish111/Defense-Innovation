@@ -1,0 +1,44 @@
+{
+  "model": {
+    "type": "minecraft:condition",
+    "property": "blockmod:blocking",
+    "on_true": {
+      "type": "minecraft:special",
+      "base": "minecraft:item/shield_blocking",
+      "model": {
+        "type": "minecraft:shield"
+      }
+    },
+    "on_false": {
+      "type": "minecraft:special",
+      "base": "minecraft:item/shield",
+      "model": {
+        "type": "minecraft:shield"
+      }
+    },
+    "transformation": {
+      "translation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "left_rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        -1.0,
+        -1.0
+      ],
+      "right_rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    }
+  }
+}

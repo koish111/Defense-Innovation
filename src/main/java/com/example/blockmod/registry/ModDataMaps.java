@@ -4,7 +4,7 @@ import com.example.blockmod.BlockMod;
 import com.example.blockmod.data.GuardProfile;
 
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 
 import net.neoforged.neoforge.registries.datamaps.RegisterDataMapTypesEvent;
@@ -21,7 +21,7 @@ import net.neoforged.neoforge.registries.datamaps.DataMapType;
  */
 public final class ModDataMaps {
     public static final DataMapType<Item, GuardProfile> GUARD_PROFILE = DataMapType.builder(
-            ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "guard_profile"),
+            Identifier.fromNamespaceAndPath(BlockMod.MODID, "guard_profile"),
             Registries.ITEM,
             GuardProfile.CODEC)
             .synced(GuardProfile.CODEC, true)

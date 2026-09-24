@@ -18,5 +18,6 @@
   "key.blockmod.power_guard": "强力防御",
   "key.blockmod.guard": "格挡",
   "key.blockmod.shield_bash": "盾击",
-  "key.blockmod.parry": "招架"
+  "key.blockmod.parry": "招架",
+  "key.category.blockmod.combat": "防御革新"
 }

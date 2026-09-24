@@ -8,9 +8,7 @@
     " P "
   ],
   "key": {
-    "P": {
-      "item": "minecraft:iron_ingot"
-    }
+    "P": "minecraft:iron_ingot"
   },
   "result": {
     "id": "blockmod:iron_buckler",

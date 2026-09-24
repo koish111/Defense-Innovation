@@ -9,7 +9,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 
@@ -22,7 +22,7 @@ public record GuardPoseSyncPayload(UUID playerId, ItemStack mainHand, ItemStack 
     }
 
     public static final Type<GuardPoseSyncPayload> TYPE =
-            new Type<>(ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "guard_pose_sync"));
+            new Type<>(Identifier.fromNamespaceAndPath(BlockMod.MODID, "guard_pose_sync"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, GuardPoseSyncPayload> STREAM_CODEC = StreamCodec.composite(
             UUIDUtil.STREAM_CODEC, GuardPoseSyncPayload::playerId,

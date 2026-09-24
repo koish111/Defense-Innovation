@@ -222,7 +222,7 @@ public final class StunHandler {
         var original = event.getOriginal();
         var now = event.getEntity();
         if (original.getPersistentData().contains(PREV_TEAM_KEY)) {
-            now.getPersistentData().putString(PREV_TEAM_KEY, original.getPersistentData().getString(PREV_TEAM_KEY));
+            now.getPersistentData().putString(PREV_TEAM_KEY, original.getPersistentData().getStringOr(PREV_TEAM_KEY, ""));
             original.getPersistentData().remove(PREV_TEAM_KEY);
         }
         if (now.hasEffect(ModEffects.STUN)) {
@@ -270,7 +270,7 @@ public final class StunHandler {
         }
         Scoreboard scoreboard = entity.level().getScoreboard();
         var data = entity.getPersistentData();
-        String prev = data.getString(PREV_TEAM_KEY);
+        String prev = data.getStringOr(PREV_TEAM_KEY, "");
         data.remove(PREV_TEAM_KEY);
         PlayerTeam stunTeam = scoreboard.getPlayerTeam(STUN_TEAM_NAME);
         PlayerTeam current = scoreboard.getPlayersTeam(entity.getScoreboardName());

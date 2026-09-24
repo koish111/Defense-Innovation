@@ -55,8 +55,5 @@
 			"translation": [0.25, 0, 0],
 			"scale": [0.6, 0.6, 0.6]
 		}
-	},
-	"overrides": [
-		{ "predicate": { "blocking": 1 }, "model": "blockmod:item/reinforced_iron_shield_blocking" }
-	]
+	}
 }

@@ -8,12 +8,8 @@
     " P "
   ],
   "key": {
-    "P": {
-      "item": "minecraft:iron_ingot"
-    },
-    "B": {
-      "item": "minecraft:iron_block"
-    }
+    "P": "minecraft:iron_ingot",
+    "B": "minecraft:iron_block"
   },
   "result": {
     "id": "blockmod:iron_great_shield",

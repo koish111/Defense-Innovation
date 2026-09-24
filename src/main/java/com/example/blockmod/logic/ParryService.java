@@ -15,7 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.phys.Vec3;
 
 import org.jetbrains.annotations.Nullable;
@@ -72,7 +72,7 @@ public final class ParryService {
             // parries and must not display a parry cooldown.
             GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
             if (equipment != null && windowTicks(equipment.profile()) > 0) {
-                player.getCooldowns().addCooldown(equipment.stack().getItem(), Config.parryCooldownTicks());
+                player.getCooldowns().addCooldown(equipment.stack(), Config.parryCooldownTicks());
             }
         }
     }
@@ -110,7 +110,7 @@ public final class ParryService {
         if (attacker != null) {
             spawnCrit(player.level(), attacker.getX(), attacker.getY() + 1.0, attacker.getZ());
         }
-        BlockModLogger.info("PARRY", "player", player.getGameProfile().getName(),
+        BlockModLogger.info("PARRY", "player", player.getGameProfile().name(),
                 "class", damageClass, "attacker", attacker == null ? "none" : attacker.getType().toString());
     }
 
@@ -142,7 +142,7 @@ public final class ParryService {
                     .getKey(entity.getType()).toString();
             return Config.bossEntityList().contains(id);
         }
-        return entity.getType().is(ModTags.BOSSES); // default: tag
+        return entity.typeHolder().is(ModTags.BOSSES); // default: tag
     }
 
     /** T-33: deflect an arrow — 80% speed (floor 0.6), ±20° jitter, mild lift, owner cleared. */
@@ -157,7 +157,7 @@ public final class ParryService {
         arrow.setDeltaMovement(dir.scale(speed));
         arrow.setOwner(null); // FR-13: never bounces back at the shooter
         arrow.hurtMarked = true;
-        arrow.hasImpulse = true;
+        arrow.needsSync = true;
     }
 
 }

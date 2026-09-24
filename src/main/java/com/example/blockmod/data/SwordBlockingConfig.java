@@ -7,17 +7,17 @@ import io.netty.buffer.ByteBuf;
 
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /** Immutable item-selection snapshot shared by the server and its client mirrors. */
 public record SwordBlockingConfig(
         boolean includeSwordsTag,
-        Set<ResourceLocation> whitelist,
-        Set<ResourceLocation> blacklist) {
+        Set<Identifier> whitelist,
+        Set<Identifier> blacklist) {
     public static final SwordBlockingConfig DEFAULT = new SwordBlockingConfig(true, Set.of(), Set.of());
 
-    private static final StreamCodec<ByteBuf, Set<ResourceLocation>> ITEM_IDS =
-            ByteBufCodecs.collection(HashSet::new, ResourceLocation.STREAM_CODEC);
+    private static final StreamCodec<ByteBuf, Set<Identifier>> ITEM_IDS =
+            ByteBufCodecs.collection(HashSet::new, Identifier.STREAM_CODEC);
     public static final StreamCodec<ByteBuf, SwordBlockingConfig> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.BOOL, SwordBlockingConfig::includeSwordsTag,
             ITEM_IDS, SwordBlockingConfig::whitelist,

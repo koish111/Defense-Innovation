@@ -68,7 +68,7 @@ public final class StaminaService {
         GuardStateData guardState = player.getData(ModAttachments.GUARD_STATE.get());
         stamina.setStamina(value);
         afterStaminaChanged(player, stamina, guardState);
-        BlockModLogger.info("STAMINA", "action", "set", "player", player.getGameProfile().getName(), "value", value);
+        BlockModLogger.info("STAMINA", "action", "set", "player", player.getGameProfile().name(), "value", value);
     }
 
     /** Adds stamina clamped to the maximum (FR-03 food restore path); fires the depletion edge check. */
@@ -106,7 +106,7 @@ public final class StaminaService {
             // FR-22/T-40: the depletion cue splits by the equipment held at the crossing
             // (sword vs shield); empty hands fall back to the shield variant.
             ModSounds.play(player, depletionCue(player), 0.8f, 0.7f);
-            BlockModLogger.info("DEPLETED", "phase", "enter", "player", player.getGameProfile().getName(),
+            BlockModLogger.info("DEPLETED", "phase", "enter", "player", player.getGameProfile().name(),
                     "stamina", stamina.stamina());
         } else {
             if (guardState.isGuarding()) {
@@ -115,7 +115,7 @@ public final class StaminaService {
                     MovementService.apply(player, guardState, profile, true);
                 }
             }
-            BlockModLogger.info("DEPLETED", "phase", "exit", "player", player.getGameProfile().getName());
+            BlockModLogger.info("DEPLETED", "phase", "exit", "player", player.getGameProfile().name());
         }
     }
 

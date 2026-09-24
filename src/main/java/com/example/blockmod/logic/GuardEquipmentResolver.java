@@ -143,7 +143,7 @@ public final class GuardEquipmentResolver {
     @Nullable
     private static GuardProfile configuredProfile(ItemStack stack) {
         GuardProfile profile = stack.get(ModDataComponents.GUARD_PROFILE.get());
-        return profile != null ? profile : stack.getItemHolder().getData(ModDataMaps.GUARD_PROFILE);
+        return profile != null ? profile : stack.typeHolder().getData(ModDataMaps.GUARD_PROFILE);
     }
 
     private static int slotClass(ItemStack stack, SwordBlockingConfig swordBlocking) {
@@ -157,7 +157,7 @@ public final class GuardEquipmentResolver {
         if (profile == null && ModTags.isShieldItem(stack) && stack.is(ModTags.ITEMS_GUARDABLE)) {
             return GuardRules.EQUIP_SHIELD;
         }
-        var itemId = stack.getItemHolder().getKey().location();
+        var itemId = stack.typeHolder().getKey().identifier();
         boolean defaultSword = profile != null || stack.is(ItemTags.SWORDS) || stack.is(ModTags.ITEMS_GUARDABLE);
         return GuardRules.swordGuardAllowed(defaultSword, swordBlocking.includeSwordsTag(),
                 swordBlocking.whitelist().contains(itemId), swordBlocking.blacklist().contains(itemId))

@@ -8,9 +8,7 @@
     " P "
   ],
   "key": {
-    "P": {
-      "tag": "minecraft:planks"
-    }
+    "P": "#minecraft:planks"
   },
   "result": {
     "id": "blockmod:wooden_buckler",

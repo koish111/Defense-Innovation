@@ -43,13 +43,13 @@ public final class ShieldBashService {
         }
         GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
         if (equipment == null || equipment.profile().type() != ShieldType.MEDIUM) {
-            BlockModLogger.warn("BASH", "action", "rejected", "player", player.getGameProfile().getName(),
+            BlockModLogger.warn("BASH", "action", "rejected", "player", player.getGameProfile().name(),
                     "reason", "not a medium shield");
             return; // E-11: non-medium shields never bash
         }
         StaminaData stamina = player.getData(ModAttachments.STAMINA.get());
         if (Config.bashRequiresPositiveStamina() && stamina.isDepleted()) {
-            BlockModLogger.warn("BASH", "action", "rejected", "player", player.getGameProfile().getName(),
+            BlockModLogger.warn("BASH", "action", "rejected", "player", player.getGameProfile().name(),
                     "reason", "O-20 depleted");
             return;
         }
@@ -61,7 +61,7 @@ public final class ShieldBashService {
         // authoritative windup length so the visual spans exactly the server window
         net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,
                 new com.example.blockmod.network.BashWindupPayload(Config.bashWindupTicks()));
-        BlockModLogger.info("BASH", "action", "windup", "player", player.getGameProfile().getName(),
+        BlockModLogger.info("BASH", "action", "windup", "player", player.getGameProfile().name(),
                 "ends", guardState.bashWindupEndTick());
     }
 
@@ -77,7 +77,7 @@ public final class ShieldBashService {
         // (designer ruling 2026-09-07). Shield items have no vanilla use side effects here.
         GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
         if (equipment != null && equipment.profile().type() == ShieldType.MEDIUM) {
-            player.getCooldowns().addCooldown(equipment.stack().getItem(), Config.bashCooldownTicks());
+            player.getCooldowns().addCooldown(equipment.stack(), Config.bashCooldownTicks());
         }
 
         // T-40: the bash release cue plays at resolution whether or not anything was hit.
@@ -90,7 +90,7 @@ public final class ShieldBashService {
             StaminaService.addStamina(player, -consume); // O-19: optional bash cost
         }
         SyncThrottler.forceSync(player);
-        BlockModLogger.info("BASH", "action", "resolve", "player", player.getGameProfile().getName(),
+        BlockModLogger.info("BASH", "action", "resolve", "player", player.getGameProfile().name(),
                 "hits", hits, "consume", consume);
     }
 
@@ -134,7 +134,7 @@ public final class ShieldBashService {
     }
 
     private static void damageAndKnockback(ServerPlayer player, LivingEntity target, double dx, double dz, double dist) {
-        boolean hurt = target.hurt(player.damageSources().playerAttack(player), Config.bashDamage());
+        boolean hurt = target.hurtServer(player.level(), player.damageSources().playerAttack(player), Config.bashDamage());
         double dirX = dist > 1.0e-4 ? dx / dist : player.getLookAngle().x;
         double dirZ = dist > 1.0e-4 ? dz / dist : player.getLookAngle().z;
         double k = Config.bashKnockbackBlocks() * KNOCKBACK_CONVERSION;

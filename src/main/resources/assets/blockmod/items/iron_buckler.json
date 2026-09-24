@@ -1,0 +1,14 @@
+{
+  "model": {
+    "type": "minecraft:condition",
+    "property": "blockmod:guard_raise",
+    "on_true": {
+      "type": "minecraft:model",
+      "model": "blockmod:item/iron_buckler_raise_12"
+    },
+    "on_false": {
+      "type": "minecraft:model",
+      "model": "blockmod:item/iron_buckler"
+    }
+  }
+}

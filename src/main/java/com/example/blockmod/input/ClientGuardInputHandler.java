@@ -29,7 +29,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /**
  * T-27 client side: captures the guard-key hold state and reports it as intent
@@ -144,7 +144,7 @@ public final class ClientGuardInputHandler {
         boolean stateChanged = wantSend != sentState;
         boolean heartbeatDue = wantSend && ++ticksSinceSend >= Config.stateHeartbeatTicks();
         if (stateChanged || heartbeatDue) {
-            PacketDistributor.sendToServer(new GuardInputPayload(wantSend, player.tickCount));
+            ClientPacketDistributor.sendToServer(new GuardInputPayload(wantSend, player.tickCount));
             sentState = wantSend;
             sentGuardStack = wantSend ? activeGuardStack(player) : ItemStack.EMPTY;
             ticksSinceSend = 0;
@@ -217,10 +217,9 @@ public final class ClientGuardInputHandler {
         if (target instanceof EntityHitResult hit) {
             var entity = hit.getEntity();
             if (!minecraft.level.getWorldBorder().isWithinBounds(entity.blockPosition())) return false;
-            InteractionResult result = minecraft.gameMode.interactAt(player, entity, hit, hand);
-            if (!result.consumesAction()) result = minecraft.gameMode.interact(player, entity, hand);
+            InteractionResult result = minecraft.gameMode.interact(player, entity, hit, hand);
             if (result.consumesAction()) {
-                if (result.shouldSwing() && allowSwing) player.swing(hand);
+                if ((result instanceof InteractionResult.Success success && success.swingSource() == InteractionResult.SwingSource.CLIENT) && allowSwing) player.swing(hand);
                 return false;
             }
         } else if (target instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
@@ -228,9 +227,9 @@ public final class ClientGuardInputHandler {
             int count = stack.getCount();
             InteractionResult result = minecraft.gameMode.useItemOn(player, hand, hit);
             if (result.consumesAction()) {
-                if (result.shouldSwing() && allowSwing) {
+                if ((result instanceof InteractionResult.Success success && success.swingSource() == InteractionResult.SwingSource.CLIENT) && allowSwing) {
                     player.swing(hand);
-                    if (!stack.isEmpty() && (stack.getCount() != count || minecraft.gameMode.hasInfiniteItems())) {
+                    if (!stack.isEmpty() && (stack.getCount() != count || player.hasInfiniteMaterials())) {
                         minecraft.gameRenderer.itemInHandRenderer.itemUsed(hand);
                     }
                 }

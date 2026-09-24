@@ -82,7 +82,7 @@ public final class GuardPoseRenderer {
             pose.mulPose(right ? RIGHT_BLOCK : LEFT_BLOCK);
             minecraft.gameRenderer.itemInHandRenderer.renderItem(player, event.getItemStack(),
                     right ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
-                    !right, pose, event.getMultiBufferSource(), event.getPackedLight());
+                    pose, event.getSubmitNodeCollector(), event.getPackedLight());
             event.setCanceled(true);
         } finally {
             pose.popPose();
@@ -90,9 +90,18 @@ public final class GuardPoseRenderer {
     }
 
     @SubscribeEvent
-    static void onRenderPlayer(RenderPlayerEvent.Pre event) {
-        poseArm(event, InteractionHand.MAIN_HAND);
-        poseArm(event, InteractionHand.OFF_HAND);
+    static void onRegisterRenderStateModifiers(
+            net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent event) {
+        event.registerAvatarEntityModifier(new net.neoforged.neoforge.client.renderstate.AvatarRenderStateModifier() {
+            @Override
+            public <T extends net.minecraft.world.entity.Avatar & net.minecraft.client.entity.ClientAvatarEntity>
+                    void accept(T avatar, net.minecraft.client.renderer.entity.state.AvatarRenderState state) {
+                if (avatar instanceof Player player) {
+                    poseArm(player, state, InteractionHand.MAIN_HAND);
+                    poseArm(player, state, InteractionHand.OFF_HAND);
+                }
+            }
+        });
     }
 
     /**
@@ -112,26 +121,22 @@ public final class GuardPoseRenderer {
         return GuardEquipmentResolver.typeOf(stack, ClientGuardState.swordBlocking()) != ShieldType.SWORD;
     }
 
-    private static void poseArm(RenderPlayerEvent.Pre event, InteractionHand hand) {
-        if (!shouldPose(event.getEntity(), hand)) return;
-        var model = event.getRenderer().getModel();
-        var entity = event.getEntity();
+    private static void poseArm(Player entity, net.minecraft.client.renderer.entity.state.AvatarRenderState state,
+            InteractionHand hand) {
+        if (!shouldPose(entity, hand)) return;
         var stackType = GuardEquipmentResolver.typeOf(entity.getItemInHand(hand), ClientGuardState.swordBlocking());
-        HumanoidModel.ArmPose pose;
-        if (stackType == ShieldType.SWORD) {
-            pose = SwordGuardArmPose.SWORD_BLOCK.getValue();
-        } else {
-            pose = HumanoidModel.ArmPose.BLOCK;
-        }
+        HumanoidModel.ArmPose pose = stackType == ShieldType.SWORD
+                ? SwordGuardArmPose.SWORD_BLOCK.getValue() : HumanoidModel.ArmPose.BLOCK;
         HumanoidArm arm = hand == InteractionHand.MAIN_HAND
                 ? entity.getMainArm() : entity.getMainArm().getOpposite();
         if (arm == HumanoidArm.RIGHT) {
-            model.rightArmPose = pose;
-            if (model.leftArmPose.isTwoHanded()) model.leftArmPose = HumanoidModel.ArmPose.ITEM;
+            state.rightArmPose = pose;
+            if (state.leftArmPose.isTwoHanded()) state.leftArmPose = HumanoidModel.ArmPose.ITEM;
         } else {
-            model.leftArmPose = pose;
-            if (model.rightArmPose.isTwoHanded()) model.rightArmPose = HumanoidModel.ArmPose.ITEM;
+            state.leftArmPose = pose;
+            if (state.rightArmPose.isTwoHanded()) state.rightArmPose = HumanoidModel.ArmPose.ITEM;
         }
+        if (stackType == ShieldType.SWORD) state.attackTime = 0.0F;
     }
 
     @SubscribeEvent

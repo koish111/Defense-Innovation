@@ -1,0 +1,14 @@
+{
+  "model": {
+    "type": "minecraft:condition",
+    "property": "blockmod:blocking",
+    "on_true": {
+      "type": "minecraft:model",
+      "model": "blockmod:item/diamond_shield_blocking"
+    },
+    "on_false": {
+      "type": "minecraft:model",
+      "model": "blockmod:item/diamond_shield"
+    }
+  }
+}

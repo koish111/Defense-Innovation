@@ -55,9 +55,9 @@ public final class ModItems {
             // Mutates in place and returns this — keeping the local effectively final.
             properties.fireResistant();
         }
-        return ITEMS.register(name, () -> new GuardShieldItem(properties
+        return ITEMS.registerItem(name, GuardShieldItem::new, () -> properties
                 .component(ModDataComponents.GUARD_PROFILE.get(),
-                        new GuardProfile(type, gb, parryWindowTicks, moveSpeedMalus, powerGuardBonus, true))));
+                        new GuardProfile(type, gb, parryWindowTicks, moveSpeedMalus, powerGuardBonus, true)));
     }
 
     private ModItems() {}

@@ -124,7 +124,7 @@ final class GuardArmTransforms {
         try {
             minecraft.gameRenderer.itemInHandRenderer.renderItem(player, stack,
                     right ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
-                    !right, poseStack, event.getMultiBufferSource(), event.getPackedLight());
+                    poseStack, event.getSubmitNodeCollector(), event.getPackedLight());
         } finally {
             replicatingFirstPerson = false;
         }

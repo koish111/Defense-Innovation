@@ -31,30 +31,32 @@ import org.lwjgl.glfw.GLFW;
  * </ul>
  */
 public final class ModKeyMappings {
+    public static final KeyMapping.Category CATEGORY = new KeyMapping.Category(
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("blockmod", "combat"));
     public static final KeyMapping POWER_GUARD = new KeyMapping(
             "key.blockmod.power_guard",
             KeyConflictContext.IN_GAME,
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_LEFT_CONTROL,
-            "key.categories.blockmod");
+            CATEGORY);
     public static final KeyMapping GUARD = new KeyMapping(
             "key.blockmod.guard",
             KeyConflictContext.IN_GAME,
             InputConstants.Type.MOUSE,
             GLFW.GLFW_MOUSE_BUTTON_RIGHT,
-            "key.categories.blockmod");
+            CATEGORY);
     public static final KeyMapping SHIELD_BASH = new KeyMapping(
             "key.blockmod.shield_bash",
             KeyConflictContext.IN_GAME,
             InputConstants.Type.MOUSE,
             GLFW.GLFW_MOUSE_BUTTON_LEFT,
-            "key.categories.blockmod");
+            CATEGORY);
     public static final KeyMapping PARRY = new KeyMapping(
             "key.blockmod.parry",
             KeyConflictContext.IN_GAME,
             InputConstants.Type.MOUSE,
             GLFW.GLFW_MOUSE_BUTTON_RIGHT,
-            "key.categories.blockmod");
+            CATEGORY);
 
     private ModKeyMappings() {}
 }

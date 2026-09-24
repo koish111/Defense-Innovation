@@ -8,12 +8,8 @@
     " P "
   ],
   "key": {
-    "P": {
-      "item": "minecraft:diamond"
-    },
-    "S": {
-      "item": "blockmod:iron_buckler"
-    }
+    "P": "minecraft:diamond",
+    "S": "blockmod:iron_buckler"
   },
   "result": {
     "id": "blockmod:diamond_buckler",

@@ -1,6 +1,7 @@
 package com.example.blockmod.item;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 import com.example.blockmod.data.GuardProfile;
 import com.example.blockmod.data.ShieldType;
@@ -11,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -25,9 +27,12 @@ public class GuardShieldItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    // Still called by 26.1.2; retain upstream tooltip ordering during this version-only port.
+    @SuppressWarnings("deprecation")
+    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display,
+            Consumer<Component> tooltip, TooltipFlag flag) {
         appendGuardTooltip(stack, tooltip);
-        super.appendHoverText(stack, context, tooltip, flag);
+        super.appendHoverText(stack, context, display, tooltip, flag);
     }
 
     /**
@@ -36,16 +41,20 @@ public class GuardShieldItem extends Item {
      * classified through the data map) render identical statistics. No-op without a profile.
      */
     public static void appendGuardTooltip(ItemStack stack, List<Component> tooltip) {
+        appendGuardTooltip(stack, tooltip::add);
+    }
+
+    public static void appendGuardTooltip(ItemStack stack, Consumer<Component> tooltip) {
         @Nullable GuardProfile profile = stack.get(ModDataComponents.GUARD_PROFILE.get());
         if (profile == null) {
             return;
         }
         int percent = Math.round(profile.guardStrength() * 100.0f);
-        tooltip.add(Component.translatable("tooltip.blockmod.guard_strength", percent)
+        tooltip.accept(Component.translatable("tooltip.blockmod.guard_strength", percent)
                 .withStyle(tierColor(profile.guardStrength())));
         if (profile.type() == ShieldType.GREAT && profile.powerGuardBonus() > 0.0f) {
             int bonusPercent = Math.round(profile.powerGuardBonus() * 100.0f);
-            tooltip.add(Component.translatable("tooltip.blockmod.power_guard", bonusPercent)
+            tooltip.accept(Component.translatable("tooltip.blockmod.power_guard", bonusPercent)
                     .withStyle(ChatFormatting.GOLD));
         }
     }

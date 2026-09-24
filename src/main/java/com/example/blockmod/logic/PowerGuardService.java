@@ -40,7 +40,7 @@ public final class PowerGuardService {
             return;
         }
         if (now < guardState.powerGuardReadyTick()) {
-            BlockModLogger.warn("POWER_GUARD", "action", "rejected", "player", player.getGameProfile().getName(),
+            BlockModLogger.warn("POWER_GUARD", "action", "rejected", "player", player.getGameProfile().name(),
                     "reason", "cooldown");
             return; // designer ruling 2026-09-07: 3s lockout after PG ends
         }
@@ -50,7 +50,7 @@ public final class PowerGuardService {
         GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
         String reject = validate(player, equipment, guardState);
         if (reject != null) {
-            BlockModLogger.warn("POWER_GUARD", "action", "rejected", "player", player.getGameProfile().getName(),
+            BlockModLogger.warn("POWER_GUARD", "action", "rejected", "player", player.getGameProfile().name(),
                     "reason", reject);
             return; // E-11/E-19
         }
@@ -62,7 +62,7 @@ public final class PowerGuardService {
                 secondaryProfile);
         ModSounds.play(player, ModSounds.FORTIFIED_GUARD, 0.9f, 0.6f);
         SyncThrottler.forceSync(player);
-        BlockModLogger.info("POWER_GUARD", "action", "on", "player", player.getGameProfile().getName());
+        BlockModLogger.info("POWER_GUARD", "action", "on", "player", player.getGameProfile().name());
     }
 
     /**
@@ -85,14 +85,14 @@ public final class PowerGuardService {
             guardState.setPowerGuardReadyTick(now + cooldown);
             GuardEquipmentResolver.GuardEquipment equipment = GuardEquipmentResolver.resolve(player);
             if (equipment != null) {
-                player.getCooldowns().addCooldown(equipment.stack().getItem(), cooldown);
+                player.getCooldowns().addCooldown(equipment.stack(), cooldown);
             }
             if (!secondaryStack.isEmpty()) {
-                player.getCooldowns().addCooldown(secondaryStack.getItem(), cooldown);
+                player.getCooldowns().addCooldown(secondaryStack, cooldown);
             }
         }
         SyncThrottler.forceSync(player);
-        BlockModLogger.info("POWER_GUARD", "action", "off", "player", player.getGameProfile().getName(),
+        BlockModLogger.info("POWER_GUARD", "action", "off", "player", player.getGameProfile().name(),
                 "reason", reason, "cooldownTicks", cooldown);
     }
 

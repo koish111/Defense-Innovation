@@ -15,7 +15,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /**
  * T-36/T-37 client side: the combat intents beyond guarding.
@@ -55,7 +55,7 @@ public final class ClientCombatInputHandler {
             boolean mediumShield = player.getOffhandItem().is(ModTags.ITEMS_MEDIUM_SHIELDS)
                     || player.getMainHandItem().is(ModTags.ITEMS_MEDIUM_SHIELDS);
             if (mediumShield) {
-                PacketDistributor.sendToServer(new ShieldBashPayload());
+                ClientPacketDistributor.sendToServer(new ShieldBashPayload());
             }
         }
     }
@@ -70,7 +70,7 @@ public final class ClientCombatInputHandler {
                 && GuardEquipmentResolver.canPowerGuard(player, ClientGuardState.swordBlocking());
         if (wantActive != powerGuardActive) {
             powerGuardActive = wantActive;
-            PacketDistributor.sendToServer(new PowerGuardPayload(wantActive));
+            ClientPacketDistributor.sendToServer(new PowerGuardPayload(wantActive));
         }
     }
 

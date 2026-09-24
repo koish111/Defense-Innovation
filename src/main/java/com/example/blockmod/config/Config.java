@@ -8,7 +8,7 @@ import java.util.Set;
 import com.example.blockmod.BlockModLogger;
 import com.example.blockmod.data.SwordBlockingConfig;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
@@ -540,7 +540,7 @@ public final class Config {
     }
 
     private static boolean isItemId(Object value) {
-        boolean valid = value instanceof String id && id.contains(":") && ResourceLocation.tryParse(id) != null;
+        boolean valid = value instanceof String id && id.contains(":") && Identifier.tryParse(id) != null;
         if (!valid) {
             BlockModLogger.error("CONFIG", "rule", "namespaced item ID", "value", value,
                     "action", "reject invalid sword blocking entry");
@@ -548,11 +548,11 @@ public final class Config {
         return valid;
     }
 
-    private static Set<ResourceLocation> itemIds(List<? extends String> values) {
-        var ids = new HashSet<ResourceLocation>();
+    private static Set<Identifier> itemIds(List<? extends String> values) {
+        var ids = new HashSet<Identifier>();
         for (String value : values) {
             if (isItemId(value)) {
-                ids.add(ResourceLocation.parse(value));
+                ids.add(Identifier.parse(value));
             }
         }
         return ids;

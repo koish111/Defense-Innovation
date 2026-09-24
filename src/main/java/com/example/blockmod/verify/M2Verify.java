@@ -34,8 +34,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.animal.Pig;
-import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -156,14 +156,14 @@ public final class M2Verify {
                 Items.GOLDEN_SWORD, Items.DIAMOND_SWORD, Items.NETHERITE_SWORD }) {
             var stack = new ItemStack(item);
             probe.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
-            swordCheck("tag_" + stack.getItemHolder().getKey().location(),
+            swordCheck("tag_" + stack.typeHolder().getKey().identifier(),
                     GuardEquipmentResolver.isSword(stack, SwordBlockingConfig.DEFAULT));
         }
 
         var sword = new ItemStack(Items.IRON_SWORD);
         var stick = new ItemStack(Items.STICK);
-        var swordId = sword.getItemHolder().getKey().location();
-        var stickId = stick.getItemHolder().getKey().location();
+        var swordId = sword.typeHolder().getKey().identifier();
+        var stickId = stick.typeHolder().getKey().identifier();
         var additions = new SwordBlockingConfig(true, Set.of(stickId), Set.of(swordId));
         var onlyListed = new SwordBlockingConfig(false, Set.of(stickId), Set.of());
         var denied = new SwordBlockingConfig(true, Set.of(stickId), Set.of(stickId));
@@ -262,18 +262,18 @@ public final class M2Verify {
             buffer.release();
         }
 
-        var zombie = EntityType.ZOMBIE.create(probe.level());
-        probe.moveTo(probe.getX(), probe.getY(), probe.getZ(), 0.0F, 0.0F);
-        zombie.moveTo(probe.getX(), probe.getY(), probe.getZ() + 1.0, 0.0F, 0.0F);
+        var zombie = EntityType.ZOMBIE.create(probe.level(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        probe.snapTo(probe.getX(), probe.getY(), probe.getZ(), 0.0F, 0.0F);
+        zombie.snapTo(probe.getX(), probe.getY(), probe.getZ() + 1.0, 0.0F, 0.0F);
         float health = probe.getHealth();
         int durability = sword.getDamageValue();
-        boolean hit = zombie.doHurtTarget(probe);
+        boolean hit = zombie.doHurtTarget((ServerLevel) zombie.level(), probe);
         swordCheck("offhand_parry_counters_without_cost", !hit && probe.getHealth() == health
                 && stamina.stamina() == Config.maxStamina() && sword.getDamageValue() == durability
                 && zombie.hasEffect(ModEffects.STUN));
         zombie.removeEffect(ModEffects.STUN);
         probe.invulnerableTime = 0;
-        hit = zombie.doHurtTarget(probe);
+        hit = zombie.doHurtTarget((ServerLevel) zombie.level(), probe);
         swordCheck("offhand_block_costs_stamina_without_durability", !hit && probe.getHealth() == health
                 && stamina.stamina() < Config.maxStamina() && sword.getDamageValue() == durability);
         zombie.discard();
@@ -341,10 +341,10 @@ public final class M2Verify {
             dualCheck(name, "drains_once_no_regen", Math.abs(stamina.stamina() - (Config.maxStamina() - drain)) < 0.001F);
         }
         guard.setParryWindowEndTick(-1L);
-        var zombie = EntityType.ZOMBIE.create(level);
-        probe.moveTo(0.0, 100.0, 0.0, 0.0F, 0.0F);
+        var zombie = EntityType.ZOMBIE.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        probe.snapTo(0.0, 100.0, 0.0, 0.0F, 0.0F);
         probe.setYHeadRot(0.0F);
-        zombie.moveTo(0.0, 100.0, 1.0, 0.0F, 0.0F);
+        zombie.snapTo(0.0, 100.0, 1.0, 0.0F, 0.0F);
         float health = probe.getHealth();
         float before = stamina.stamina();
         float pfix = "always_pvp".equals(Config.pvpMode()) ? Config.pfixPvp() : Config.pfixPve();
@@ -365,7 +365,7 @@ public final class M2Verify {
         float expectedGb = com.example.blockmod.logic.EffectiveStrengthResolver.resolve(
                 equipment.profile(), secondaryProfile, guard.isPowerGuarding());
         float expectedCost = com.example.blockmod.logic.GuardFormulas.staminaCost(scaled, expectedGb, pfix);
-        boolean hit = probe.hurt(probe.damageSources().mobAttack(zombie), incoming);
+        boolean hit = probe.hurtServer(probe.level(), probe.damageSources().mobAttack(zombie), incoming);
         dualCheck(name, "merged_damage_cost", !hit && probe.getHealth() == health
                 && Math.abs(before - stamina.stamina() - expectedCost) < 0.001F);
         boolean mainIsSecondary = guard.guardHand() == off;
@@ -422,13 +422,13 @@ public final class M2Verify {
      * StunHandler cleanup stays under the manual G2 checklist.
      */
     private static void stunFreezeCases(ServerLevel level) {
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = level.getRespawnData().pos();
         double x = spawn.getX() + 2.5, z = spawn.getZ() + 2.5;
         double y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) x, (int) z);
 
         // 冻结: a stunned pig holds position and heading while gravity/travel run
-        Pig pig = EntityType.PIG.create(level);
-        pig.moveTo(x, y, z, 30.0f, 0.0f);
+        Pig pig = EntityType.PIG.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        pig.snapTo(x, y, z, 30.0f, 0.0f);
         pig.addEffect(new MobEffectInstance(ModEffects.STUN, 400, 0, false, false), null);
         for (int i = 0; i < 5; i++) pig.tick(); // settle: friction + gravity ground the body
         double fx = pig.getX(), fz = pig.getZ();
@@ -448,16 +448,16 @@ public final class M2Verify {
         pig.discard();
 
         // 攻击: a stunned attacker deals no damage (hurt pipeline, server-authoritative)
-        Pig victim = EntityType.PIG.create(level);
-        victim.moveTo(x, y, z, 0.0f, 0.0f);
-        Zombie zombie = EntityType.ZOMBIE.create(level);
-        zombie.moveTo(x + 1.0, y, z, 0.0f, 0.0f);
+        Pig victim = EntityType.PIG.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        victim.snapTo(x, y, z, 0.0f, 0.0f);
+        Zombie zombie = EntityType.ZOMBIE.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        zombie.snapTo(x + 1.0, y, z, 0.0f, 0.0f);
         float full = victim.getHealth();
-        boolean controlLanded = zombie.doHurtTarget(victim);
+        boolean controlLanded = zombie.doHurtTarget((ServerLevel) zombie.level(), victim);
         float afterControl = victim.getHealth();
         victim.invulnerableTime = 0; // same-tick re-bite: clear i-frames so only the stun differs
         zombie.addEffect(new MobEffectInstance(ModEffects.STUN, 400, 0, false, false), null);
-        boolean stunnedLanded = zombie.doHurtTarget(victim);
+        boolean stunnedLanded = zombie.doHurtTarget((ServerLevel) zombie.level(), victim);
         log(new Result("stun 攻击: 控制组未眩晕可命中", controlLanded && afterControl < full, "扣血",
                 String.format("landed=%s hp=%.1f", controlLanded, afterControl)));
         log(new Result("stun 攻击: 眩晕后伤害被取消", !stunnedLanded && victim.getHealth() == afterControl, "不扣血",
@@ -483,7 +483,7 @@ public final class M2Verify {
         }
         prevTeam.setColor(ChatFormatting.GREEN);
 
-        Pig pig = EntityType.PIG.create(level);
+        Pig pig = EntityType.PIG.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
         scoreboard.addPlayerToTeam(pig.getScoreboardName(), prevTeam);
         pig.addEffect(new MobEffectInstance(ModEffects.STUN, 40, 0, false, true, true), null);
         boolean glowOn = pig.hasGlowingTag() && pig.isCurrentlyGlowing();
@@ -513,12 +513,12 @@ public final class M2Verify {
      * {@link PlayerTickHandler#tick} through a full arm → resolve cycle.
      */
     private static void creativeBashCase(ServerLevel level, GuardProbe probe) {
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = level.getRespawnData().pos();
         double x = spawn.getX() - 2.5, z = spawn.getZ() - 2.5;
         double y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) x, (int) z);
-        probe.moveTo(x, y, z, 0.0f, 0.0f);
+        probe.snapTo(x, y, z, 0.0f, 0.0f);
         probe.setCreative(true);
-        probe.getInventory().offhand.set(0, new ItemStack(Items.SHIELD)); // data map → medium profile
+        probe.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, new ItemStack(Items.SHIELD)); // data map → medium profile
         GuardStateData g = probe.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
         StaminaData s = probe.getData(com.example.blockmod.registry.ModAttachments.STAMINA.get());
         s.setStamina(Config.maxStamina());
@@ -537,7 +537,7 @@ public final class M2Verify {
 
         g.setGuarding(false);
         g.setBashReadyTick(-1L);
-        probe.getInventory().offhand.set(0, ItemStack.EMPTY);
+        probe.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, ItemStack.EMPTY);
         probe.setCreative(false);
     }
 
@@ -550,12 +550,12 @@ public final class M2Verify {
      * down → the same events pass.
      */
     private static void guardInteractionCases(ServerLevel level, GuardProbe probe) {
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = level.getRespawnData().pos();
         double x = spawn.getX() - 2.5, z = spawn.getZ() + 0.5;
         double y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) x, (int) z);
-        probe.moveTo(x, y, z, 0.0f, 0.0f);
-        Zombie zombie = EntityType.ZOMBIE.create(level);
-        zombie.moveTo(x + 1.0, y, z, 0.0f, 0.0f);
+        probe.snapTo(x, y, z, 0.0f, 0.0f);
+        Zombie zombie = EntityType.ZOMBIE.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        zombie.snapTo(x + 1.0, y, z, 0.0f, 0.0f);
         GuardStateData g = probe.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
         g.setGuarding(true);
         g.setPowerGuarding(false);
@@ -584,20 +584,20 @@ public final class M2Verify {
      * resolves) with only the stun effect differing between the two bites.
      */
     private static void stunDefenseCases(ServerLevel level, GuardProbe probe) {
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = level.getRespawnData().pos();
         double x = spawn.getX() + 4.5, z = spawn.getZ() + 2.5;
         double y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) x, (int) z);
 
         // probe faces +Z (yaw 0); the zombie bites from the front → frontal check passes
-        probe.moveTo(x, y, z, 0.0f, 0.0f);
+        probe.snapTo(x, y, z, 0.0f, 0.0f);
         probe.setYRot(0.0f);
         probe.setYHeadRot(0.0f);
-        probe.getInventory().offhand.set(0, new ItemStack(Items.SHIELD));
+        probe.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, new ItemStack(Items.SHIELD));
         StaminaData s = probe.getData(com.example.blockmod.registry.ModAttachments.STAMINA.get());
         GuardStateData g = probe.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
 
-        Zombie zombie = EntityType.ZOMBIE.create(level);
-        zombie.moveTo(x, y, z + 1.0, 0.0f, 0.0f);
+        Zombie zombie = EntityType.ZOMBIE.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        zombie.snapTo(x, y, z + 1.0, 0.0f, 0.0f);
 
         // control: guarding + positive stamina → GUARDED (damage cancelled, cost paid)
         s.setStamina(20.0f);
@@ -608,7 +608,7 @@ public final class M2Verify {
         g.setGuardHand(equipment.hand());
         g.setGuardEquipment(equipment.stack(), equipment.profile().type());
         float full = probe.getHealth();
-        boolean blockedLanded = zombie.doHurtTarget(probe);
+        boolean blockedLanded = zombie.doHurtTarget((ServerLevel) zombie.level(), probe);
         log(new Result("stun 防御: 控制组格挡生效",
                 !blockedLanded && probe.getHealth() == full && s.stamina() < 20.0f, "不扣血+扣体力",
                 String.format("landed=%s hp=%.1f st=%.2f", blockedLanded, probe.getHealth(), s.stamina())));
@@ -617,14 +617,14 @@ public final class M2Verify {
         s.setStamina(20.0f);
         probe.addEffect(new MobEffectInstance(ModEffects.STUN, 400, 0, false, false), null);
         probe.invulnerableTime = 0;
-        boolean stunnedLanded = zombie.doHurtTarget(probe);
+        boolean stunnedLanded = zombie.doHurtTarget((ServerLevel) zombie.level(), probe);
         log(new Result("stun 防御: 眩晕后格挡失效",
                 stunnedLanded && probe.getHealth() < full, "扣血",
                 String.format("landed=%s hp=%.1f", stunnedLanded, probe.getHealth())));
 
         probe.removeEffect(ModEffects.STUN);
         g.setGuarding(false);
-        probe.getInventory().offhand.set(0, ItemStack.EMPTY);
+        probe.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, ItemStack.EMPTY);
         zombie.discard();
     }
 
@@ -639,13 +639,13 @@ public final class M2Verify {
      * dropping the guard clears the window.
      */
     private static void guardGraceCases(ServerLevel level, GuardProbe probe) {
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = level.getRespawnData().pos();
         double x = spawn.getX() + 6.5, z = spawn.getZ() + 2.5;
         double y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) x, (int) z);
-        probe.moveTo(x, y, z, 0.0f, 0.0f);
+        probe.snapTo(x, y, z, 0.0f, 0.0f);
         probe.setYRot(0.0f);
         probe.setYHeadRot(0.0f);
-        probe.getInventory().offhand.set(0, new ItemStack(Items.SHIELD));
+        probe.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, new ItemStack(Items.SHIELD));
         StaminaData s = probe.getData(com.example.blockmod.registry.ModAttachments.STAMINA.get());
         GuardStateData g = probe.getData(com.example.blockmod.registry.ModAttachments.GUARD_STATE.get());
         g.setGuarding(true);
@@ -656,13 +656,13 @@ public final class M2Verify {
         g.setGuardHand(equipment.hand());
         g.setGuardEquipment(equipment.stack(), equipment.profile().type());
 
-        Zombie swarm = EntityType.ZOMBIE.create(level);
-        swarm.moveTo(x, y, z + 1.0, 0.0f, 0.0f);
+        Zombie swarm = EntityType.ZOMBIE.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        swarm.snapTo(x, y, z + 1.0, 0.0f, 0.0f);
 
         long now = probe.level().getGameTime();
         s.setStamina(20.0f);
         probe.invulnerableTime = 0;
-        boolean firstLanded = swarm.doHurtTarget(probe);
+        boolean firstLanded = swarm.doHurtTarget((ServerLevel) swarm.level(), probe);
         float firstCost = 20.0f - s.stamina();
         log(new Result("guard 宽限: 首跳扣费并开窗",
                 !firstLanded && firstCost > 0f
@@ -672,7 +672,7 @@ public final class M2Verify {
 
         float stAfterFirst = s.stamina();
         long lastEvent = s.lastEventTick();
-        boolean secondLanded = swarm.doHurtTarget(probe);
+        boolean secondLanded = swarm.doHurtTarget((ServerLevel) swarm.level(), probe);
         log(new Result("guard 宽限: 窗口内连击免费",
                 !secondLanded && s.stamina() == stAfterFirst && s.lastEventTick() == lastEvent,
                 "零消耗+延迟不刷新",
@@ -681,7 +681,7 @@ public final class M2Verify {
         g.setGuardGraceEndTick(now - 1L);
         probe.invulnerableTime = 0;
         float stBeforeThird = s.stamina();
-        boolean thirdLanded = swarm.doHurtTarget(probe);
+        boolean thirdLanded = swarm.doHurtTarget((ServerLevel) swarm.level(), probe);
         log(new Result("guard 宽限: 过期后重新扣费",
                 !thirdLanded && s.stamina() < stBeforeThird && s.lastEventTick() == now,
                 "再次扣费+刷延迟",
@@ -691,7 +691,7 @@ public final class M2Verify {
         log(new Result("guard 宽限: 收盾清窗", g.guardGraceEndTick() == -1L, "-1",
                 String.valueOf(g.guardGraceEndTick())));
 
-        probe.getInventory().offhand.set(0, ItemStack.EMPTY);
+        probe.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, ItemStack.EMPTY);
         swarm.discard();
     }
 
@@ -785,7 +785,7 @@ public final class M2Verify {
         }
 
         @Override
-        public boolean isInvulnerableTo(net.minecraft.world.damagesource.DamageSource source) {
+        public boolean isInvulnerableTo(ServerLevel level, net.minecraft.world.damagesource.DamageSource source) {
             return false;
         }
     }

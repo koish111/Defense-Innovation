@@ -4,7 +4,7 @@ import com.example.blockmod.BlockMod;
 import com.example.blockmod.config.Config;
 
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.Mth;
@@ -41,7 +41,7 @@ public final class ModSounds {
 
     private static DeferredHolder<SoundEvent, SoundEvent> register(String name) {
         return SOUND_EVENTS.register(name, () -> SoundEvent.createVariableRangeEvent(
-                ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, name)));
+                Identifier.fromNamespaceAndPath(BlockMod.MODID, name)));
     }
 
     /**

@@ -1,6 +1,6 @@
 package com.example.blockmod.state;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 
@@ -28,7 +28,7 @@ public final class GuardStateData {
     private long bashWindupEndTick = -1L;
     private long bashReadyTick = -1L;
     private long guardGraceEndTick = -1L;
-    private ResourceLocation activeMoveMalusId;
+    private Identifier activeMoveMalusId;
     private boolean wasDepleted;
 
     public boolean isGuarding() {
@@ -148,13 +148,13 @@ public final class GuardStateData {
     /**
      * Id of the currently mounted move-speed modifier; null = none.
      * Spec §4.3.3 named this field a UUID, but 1.20.5+ keys attribute modifiers by
-     * ResourceLocation (verified in M0, API-10) so the type follows the platform.
+     * Identifier (verified in M0, API-10) so the type follows the platform.
      */
-    public ResourceLocation activeMoveMalusId() {
+    public Identifier activeMoveMalusId() {
         return activeMoveMalusId;
     }
 
-    public void setActiveMoveMalusId(ResourceLocation activeMoveMalusId) {
+    public void setActiveMoveMalusId(Identifier activeMoveMalusId) {
         this.activeMoveMalusId = activeMoveMalusId;
     }
 

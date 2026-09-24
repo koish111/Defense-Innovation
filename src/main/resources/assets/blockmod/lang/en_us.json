@@ -18,5 +18,6 @@
   "key.blockmod.power_guard": "Fortified Guard",
   "key.blockmod.guard": "Guard",
   "key.blockmod.shield_bash": "Shield Bash",
-  "key.blockmod.parry": "Parry"
+  "key.blockmod.parry": "Parry",
+  "key.category.blockmod.combat": "Block & Parry"
 }

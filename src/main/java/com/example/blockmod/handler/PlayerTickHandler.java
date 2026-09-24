@@ -101,7 +101,7 @@ public final class PlayerTickHandler {
             com.example.blockmod.logic.PowerGuardService.disarm(player, guardState, now); // §5.7: PG ends with the guard
             SyncThrottler.forceSync(player);
             com.example.blockmod.BlockModLogger.info("GUARD_INPUT", "action", "container_exit",
-                    "player", player.getGameProfile().getName());
+                    "player", player.getGameProfile().name());
         }
 
         // 3. shield bash windup/cooldown resolution (FR-15 / Spec §5.6)

@@ -8,9 +8,7 @@
     " P "
   ],
   "key": {
-    "P": {
-      "tag": "minecraft:logs"
-    }
+    "P": "#minecraft:logs"
   },
   "result": {
     "id": "blockmod:wooden_great_shield",

@@ -157,7 +157,7 @@ public final class GreatshieldService {
             return;
         }
         target.setDeltaMovement(appliedX, appliedY, appliedZ);
-        target.hasImpulse = true;
+        target.needsSync = true;
         target.hurtMarked = true;
     }
 }

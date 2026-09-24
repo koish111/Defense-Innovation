@@ -23,6 +23,7 @@ Usage:
 import json
 import math
 import os
+import runpy
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MODELS = os.path.join(REPO, "src", "main", "resources", "assets", "blockmod", "models", "item")
@@ -239,7 +240,6 @@ for name in BUCKLERS:
         if existing.startswith(name + "_raise_") and existing.endswith(".json"):
             os.remove(os.path.join(MODELS, existing))
     endpoints = raise_endpoints(idle["thirdperson_righthand"], idle["thirdperson_lefthand"])
-    overrides = []
     for k in range(1, BUCKLER_RAISE_STEPS + 1):
         t = k / BUCKLER_RAISE_STEPS
         display = {key: idle[key] for key in idle
@@ -254,14 +254,6 @@ for name in BUCKLERS:
         with open(out_path, "w", encoding="utf-8", newline="\n") as f:
             json.dump(variant, f, indent="\t")
             f.write("\n")
-        overrides.append({
-            "predicate": {GUARD_RAISE_PREDICATE: round(t, 4)},
-            "model": "blockmod:item/" + name + "_raise_" + str(k),
-        })
-    base["overrides"] = overrides
-    with open(base_path, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(base, f, indent="\t")
-        f.write("\n")
     # final-step correctness: k=STEPS must rebuild the calibrated blocking pose
     for left, hand in ((False, "thirdperson_righthand"), (True, "thirdperson_lefthand")):
         final_entry = raise_entry(endpoints[left], left, 1.0, idle[hand])
@@ -270,4 +262,7 @@ for name in BUCKLERS:
                    for i in range(3) for j in range(3)), (name, hand, "rot")
         assert all(abs(tr[i] - endpoints[left]["final_t"][i]) < 1e-4
                    for i in range(3)), (name, hand, "trans")
-    print(name, "raise ladder", BUCKLER_RAISE_STEPS, "steps + overrides written")
+    print(name, "raise ladder", BUCKLER_RAISE_STEPS, "steps written")
+
+# 26.1 selects models through client-item definitions instead of model overrides.
+runpy.run_path(os.path.join(os.path.dirname(__file__), "generate_client_items.py"), run_name="__main__")

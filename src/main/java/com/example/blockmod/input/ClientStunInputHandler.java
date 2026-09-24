@@ -4,7 +4,7 @@ import com.example.blockmod.BlockMod;
 import com.example.blockmod.registry.ModEffects;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.Input;
+import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
 
 import net.neoforged.api.distmarker.Dist;
@@ -38,17 +38,10 @@ public final class ClientStunInputHandler {
         if (!event.getEntity().hasEffect(ModEffects.STUN)) {
             return;
         }
-        Input input = event.getInput();
-        input.forwardImpulse = 0.0F;
-        input.leftImpulse = 0.0F;
-        input.jumping = false;
-        // Raw key booleans: LocalPlayer.rideTick feeds these straight into the
-        // vehicle (boat paddle input), bypassing the aiStep impulses — zeroing
-        // the impulses alone would leave a stunned rider steering.
-        input.up = false;
-        input.down = false;
-        input.left = false;
-        input.right = false;
+        ClientInput input = event.getInput();
+        input.moveVector = net.minecraft.world.phys.Vec2.ZERO;
+        input.keyPresses = new net.minecraft.world.entity.player.Input(
+                false, false, false, false, false, input.keyPresses.shift(), false);
     }
 
     /**

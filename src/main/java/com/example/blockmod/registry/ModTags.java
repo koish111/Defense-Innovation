@@ -2,7 +2,7 @@ package com.example.blockmod.registry;
 
 import com.example.blockmod.BlockMod;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.core.registries.Registries;
@@ -34,7 +34,7 @@ public final class ModTags {
 
     // entity type tags
     public static final TagKey<EntityType<?>> BOSSES = TagKey.create(Registries.ENTITY_TYPE,
-            ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "bosses"));
+            Identifier.fromNamespaceAndPath(BlockMod.MODID, "bosses"));
 
     /** True when the stack is one of the three shield families (the first-person guard pose applies to these). */
     public static boolean isShieldItem(ItemStack stack) {
@@ -42,11 +42,11 @@ public final class ModTags {
     }
 
     private static TagKey<Item> itemTag(String path) {
-        return ItemTags.create(ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, path));
+        return ItemTags.create(Identifier.fromNamespaceAndPath(BlockMod.MODID, path));
     }
 
     private static TagKey<DamageType> damageTypeTag(String path) {
-        return TagKey.create(Registries.DAMAGE_TYPE, ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, path));
+        return TagKey.create(Registries.DAMAGE_TYPE, Identifier.fromNamespaceAndPath(BlockMod.MODID, path));
     }
 
     private ModTags() {}

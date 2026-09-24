@@ -45,9 +45,9 @@ public final class DurabilityService {
             ParryService.closeWindowOnRelease(player, guardState, player.level().getGameTime());
             MovementService.remove(player, guardState);
             SyncThrottler.forceSync(player);
-            BlockModLogger.info("DURABILITY", "action", "shield_broken", "player", player.getGameProfile().getName());
+            BlockModLogger.info("DURABILITY", "action", "shield_broken", "player", player.getGameProfile().name());
         });
-        BlockModLogger.info("DURABILITY", "action", "consume", "player", player.getGameProfile().getName(),
+        BlockModLogger.info("DURABILITY", "action", "consume", "player", player.getGameProfile().name(),
                 "amount", amount, "blockedDamage", blockedDamage, "damageLeft", stack.getDamageValue());
     }
 }

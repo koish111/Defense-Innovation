@@ -5,7 +5,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import com.example.blockmod.BlockMod;
 import com.example.blockmod.data.SwordBlockingConfig;
@@ -23,7 +23,7 @@ public record ConfigSyncPayload(
         SwordBlockingConfig swordBlocking) implements CustomPacketPayload {
 
     public static final Type<ConfigSyncPayload> TYPE =
-            new Type<>(ResourceLocation.fromNamespaceAndPath(BlockMod.MODID, "config_sync"));
+            new Type<>(Identifier.fromNamespaceAndPath(BlockMod.MODID, "config_sync"));
 
     public static final StreamCodec<ByteBuf, ConfigSyncPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.FLOAT, ConfigSyncPayload::maxStamina,

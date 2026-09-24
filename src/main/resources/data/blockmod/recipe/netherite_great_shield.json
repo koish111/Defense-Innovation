@@ -1,14 +1,8 @@
 {
   "type": "minecraft:smithing_transform",
-  "template": {
-    "item": "minecraft:netherite_upgrade_smithing_template"
-  },
-  "base": {
-    "item": "blockmod:diamond_great_shield"
-  },
-  "addition": {
-    "item": "minecraft:netherite_ingot"
-  },
+  "template": "minecraft:netherite_upgrade_smithing_template",
+  "base": "blockmod:diamond_great_shield",
+  "addition": "minecraft:netherite_ingot",
   "result": {
     "id": "blockmod:netherite_great_shield"
   }

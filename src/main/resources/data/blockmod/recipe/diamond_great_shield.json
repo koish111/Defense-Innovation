@@ -8,15 +8,9 @@
     " I "
   ],
   "key": {
-    "P": {
-      "item": "minecraft:diamond_block"
-    },
-    "S": {
-      "item": "blockmod:iron_great_shield"
-    },
-    "I": {
-      "item": "minecraft:diamond"
-    }
+    "P": "minecraft:diamond_block",
+    "S": "blockmod:iron_great_shield",
+    "I": "minecraft:diamond"
   },
   "result": {
     "id": "blockmod:diamond_great_shield",
